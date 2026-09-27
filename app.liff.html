@@ -1,0 +1,2430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>100 Quest</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- 手書きフォント（動物の鳴き声だけに使用。使う文字のみ配信される） -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Yomogi&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --green:#2f6d4f; --line:#06c755; --paper:#faf7f0; --ink:#2b2b28;
+      --sub:#6b6b63; --accent:#e6a817; --err:#d6453d; --radius:14px;
+    }
+    body {
+      font-family:-apple-system,"Hiragino Sans","Helvetica Neue",sans-serif;
+      background:var(--paper); color:var(--ink); line-height:1.6;
+      -webkit-font-smoothing:antialiased; padding:0 0 48px;
+    }
+    .wrap { max-width:480px; margin:0 auto; padding:24px 20px; }
+    .hidden { display:none !important; }
+
+    /* 共通 */
+    .head { text-align:center; margin-bottom:20px; }
+    .logo { font-size:26px; font-weight:800; color:var(--green); letter-spacing:1px; }
+    .head p { font-size:13px; color:var(--sub); margin-top:4px; }
+    .spinner {
+      width:36px; height:36px; margin:0 auto 16px;
+      border:3px solid #e5e2d8; border-top-color:var(--green);
+      border-radius:50%; animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #boot { text-align:center; padding:64px 20px; color:var(--sub); }
+    .ng { color:var(--err); font-weight:700; }
+    .ok { color:var(--green); font-weight:700; }
+    .status { text-align:center; font-size:14px; margin-top:14px; min-height:20px; }
+    .submit {
+      width:100%; padding:16px; font-size:16px; font-weight:800;
+      color:#fff; background:var(--line); border:none; border-radius:12px;
+      cursor:pointer; margin-top:8px;
+    }
+    .submit:disabled { opacity:.5; }
+
+    /* LINE名カード */
+    .me { display:flex; align-items:center; gap:12px; background:#fff;
+      border:1px solid #ece8dc; border-radius:var(--radius); padding:12px 14px; margin-bottom:22px; }
+    .me img { width:44px; height:44px; border-radius:50%; background:#eee; object-fit:cover; }
+    .me .name { font-weight:700; font-size:15px; }
+    .me .label { font-size:11px; color:var(--sub); }
+
+    /* フォーム */
+    .field { margin-bottom:20px; }
+    .field label { display:block; font-size:13px; font-weight:700; margin-bottom:7px; }
+    .field .req { color:var(--err); font-size:11px; margin-left:4px; }
+    .field input, .field select {
+      width:100%; padding:13px 14px; font-size:16px; border:1px solid #d9d4c6;
+      border-radius:12px; background:#fff; color:var(--ink); appearance:none; -webkit-appearance:none;
+    }
+    .field input:focus, .field select:focus { outline:none; border-color:var(--green); }
+    .field .hint { font-size:11px; color:var(--sub); margin-top:5px; }
+    .select-wrap { position:relative; }
+    .select-wrap::after { content:"▾"; position:absolute; right:14px; top:50%;
+      transform:translateY(-50%); color:var(--sub); pointer-events:none; }
+
+    /* ホーム：プロフィール要約 */
+    .profile-bar { display:flex; justify-content:space-between; align-items:center;
+      background:#fff; border:1px solid #ece8dc; border-radius:var(--radius);
+      padding:12px 14px; margin-bottom:20px; }
+    .profile-bar .pname { font-weight:800; font-size:16px; }
+    .profile-bar .pmeta { font-size:12px; color:var(--sub); }
+    .link-btn { font-size:12px; color:var(--green); background:none; border:none;
+      text-decoration:underline; cursor:pointer; }
+
+    /* リッチメニュー */
+    .menu-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .menu-card { display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:4px; background:#fff; border:1px solid #ece8dc; border-radius:16px; padding:22px 10px;
+      cursor:pointer; color:var(--ink); font-size:15px; font-weight:800; }
+    .menu-card:active { background:#f3faf5; }
+    .menu-card .mi { font-size:34px; }
+    .menu-card small { font-size:11px; font-weight:500; color:var(--sub); min-height:14px; }
+    .menu-card .badge { background:var(--accent); color:#fff; font-size:10px; font-weight:700;
+      border-radius:99px; padding:1px 7px; }
+    .back-link { background:none; border:none; color:var(--green); font-size:14px; font-weight:700;
+      cursor:pointer; padding:4px 0; margin-bottom:14px; }
+    /* 今やることバナー（状態に応じてマイグループ上部に表示） */
+    .action-banner { background:#fff; border:2px solid var(--green); border-radius:var(--radius);
+      padding:14px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(47,109,79,.12); }
+    .action-banner .ab-label { font-size:11px; font-weight:700; color:var(--sub); margin-bottom:2px; }
+    .action-banner .ab-title { font-size:16px; font-weight:800; color:var(--green); line-height:1.5; }
+    .action-banner .ab-sub { font-size:12.5px; color:var(--sub); margin-top:4px; line-height:1.6; }
+    .action-banner .ab-btn { width:100%; margin-top:10px; padding:12px; font-size:14px; font-weight:800;
+      color:#fff; background:var(--green); border:none; border-radius:10px; cursor:pointer; }
+    .action-banner .ab-btn:disabled { opacity:.6; }
+    /* 残り時間カウントダウン（クエスト画面） */
+    .growth-timer { text-align:center; font-size:12.5px; font-weight:700; color:var(--accent); margin-top:6px; }
+    .growth-timer .gt-note { font-size:10.5px; font-weight:500; color:var(--sub); }
+    .screen-title { font-size:18px; font-weight:800; color:var(--green); margin-bottom:16px; }
+    /* 時間帯タブ（複数予約の切り替え）*/
+    .band-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+    .band-tab { padding:8px 14px; border-radius:99px; border:1.5px solid #d9d4c6; background:#fff;
+      font-size:13px; font-weight:700; color:var(--sub); cursor:pointer; }
+    .band-tab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    /* 予約リスト（予約画面）*/
+    .resv-item { display:flex; justify-content:space-between; align-items:center; background:#fff;
+      border:1px solid #ece8dc; border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+    .resv-item .rtime { font-weight:800; font-size:15px; }
+    .resv-item .rcancel:disabled { color:var(--sub); border-color:#e3ddcd; cursor:default; }
+    .resv-item .rcancel { font-size:12px; font-weight:700; color:var(--err); background:none;
+      border:1px solid var(--err); border-radius:8px; padding:6px 12px; cursor:pointer; }
+    .add-resv-btn { width:100%; padding:14px; font-size:15px; font-weight:800; color:var(--green);
+      background:#fff; border:1.5px dashed var(--green); border-radius:12px; cursor:pointer; margin-bottom:8px; }
+    .placeholder { text-align:center; color:var(--sub); font-size:14px; padding:40px 16px;
+      background:#fff; border:1px solid #ece8dc; border-radius:var(--radius); }
+
+    /* グループ発表カード */
+    .group-box { background:linear-gradient(160deg,#2f6d4f,#3f8a64); color:#fff;
+      border-radius:var(--radius); padding:20px 18px; margin-bottom:20px; text-align:center; }
+    .group-box .lead { font-size:13px; opacity:.9; }
+    .group-box .gname { font-size:30px; font-weight:800; margin:6px 0 2px; }
+    .group-box .gsub { font-size:12px; opacity:.9; margin-bottom:14px; }
+    .group-members { background:#fff; border-radius:12px; padding:10px; }
+    .checkin-status { margin-top:14px; font-size:14px; font-weight:700; }
+    .checkin-status .allset { font-size:16px; }
+    .gmember { display:flex; justify-content:space-between; align-items:center;
+      padding:9px 10px; border-bottom:1px solid #f0ece1; }
+    .gmember:last-child { border-bottom:none; }
+    .gmember .gm-name { font-weight:700; color:var(--ink); font-size:15px; }
+    .gmember .gm-topic { font-size:11px; color:var(--sub); }
+    .gmember { cursor:pointer; }
+    .gmember.me { background:#f3faf5; border-radius:8px; }
+    .gmember.me .gm-name::after { content:" (あなた)"; color:var(--green); font-size:11px; }
+
+    /* メンバープロフィール モーダル */
+    #memberOverlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:100;
+      display:flex; align-items:center; justify-content:center; padding:24px; }
+    .member-card { width:300px; background:#fff; border-radius:18px; padding:22px 20px; text-align:center; }
+    .mc-name { font-size:22px; font-weight:800; color:var(--green); margin-bottom:14px; }
+    .mc-row { display:flex; justify-content:space-between; font-size:14px; padding:8px 0; border-bottom:1px solid #f0ece1; }
+    .mc-label { color:var(--sub); font-weight:700; }
+    .mc-detail-label { text-align:left; font-size:12px; color:var(--sub); font-weight:700; margin:14px 0 4px; }
+    .mc-detail { text-align:left; font-size:14px; background:#f3faf5; border-radius:10px; padding:10px 12px; min-height:42px; }
+    .member-card button { margin-top:18px; width:100%; padding:12px; font-size:14px; font-weight:700;
+      color:#fff; background:var(--green); border:none; border-radius:10px; cursor:pointer; }
+    .member-card .mc-libe { background:#fff; color:var(--green); border:1.5px solid var(--green); margin-top:14px; }
+
+    /* 危険操作の2段階確認モーダル */
+    #confirmOverlay { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:120;
+      display:flex; align-items:center; justify-content:center; padding:24px; }
+    .confirm-card { width:320px; background:#fff; border-radius:18px; padding:22px 20px; }
+    .confirm-card .cc-title { font-size:17px; font-weight:800; color:var(--err); margin-bottom:10px; text-align:center; }
+    .confirm-card .cc-body { font-size:14px; line-height:1.6; color:var(--ink); margin-bottom:6px; }
+    .confirm-card .cc-target { background:#fff6f5; border:1px solid #f0c9c5; border-radius:10px;
+      padding:8px 12px; font-weight:700; margin:10px 0; text-align:center; }
+    .confirm-card .cc-step { font-size:12px; color:var(--sub); text-align:center; margin-bottom:12px; }
+    .confirm-card .cc-btns { display:flex; gap:10px; }
+    .confirm-card .cc-btns button { flex:1; padding:12px; font-size:14px; font-weight:700;
+      border:none; border-radius:10px; cursor:pointer; }
+    .confirm-card .cc-cancel { background:#eee7d6; color:var(--ink); }
+    .confirm-card .cc-ok { background:var(--err); color:#fff; }
+
+    /* 不成立カード */
+    .unmatched-box { background:#fff6f5; border:1.5px solid #f0c9c5; border-radius:var(--radius);
+      padding:16px; margin-bottom:20px; }
+    .unmatched-box .um-title { font-weight:800; color:var(--err); font-size:15px; margin-bottom:6px; }
+    .unmatched-box .um-text { font-size:13px; color:var(--sub); }
+
+    /* ⑩ クエスト（チカラ＋姫の救出） */
+    .quest-box { background:#fff; border:1px solid #ece8dc; border-radius:var(--radius);
+      padding:16px 16px 18px; margin-bottom:20px; }
+    .q-party { text-align:center; font-size:15px; font-weight:800; color:var(--green); margin-bottom:14px; }
+    .q-party small { display:block; font-size:11px; font-weight:500; color:var(--sub); margin-top:2px; }
+    /* メインゲージ（1本だけ。5本並べない） */
+    .q-gauge-label { font-size:12px; font-weight:700; color:var(--sub); }
+    .gauge { height:16px; background:#eee7d6; border-radius:99px; overflow:hidden; margin:6px 0 4px; }
+    .gauge-fill { height:100%; width:0; background:linear-gradient(90deg,#7bc47f,var(--green));
+      border-radius:99px; transition:width .6s ease; }
+    .q-gauge-num { text-align:right; font-size:12px; color:var(--sub); }
+    /* 「あと◯で△姫を救出！」＝最も目立たせる */
+    .q-next { background:linear-gradient(135deg,#fff6df,#ffefc2); border:1.5px solid rgba(230,168,23,.5);
+      border-radius:12px; padding:12px; text-align:center; margin:12px 0; }
+    .q-next .qn-main { font-size:17px; font-weight:800; color:#8a5e00; line-height:1.5; }
+    .q-next .qn-main .qn-num { font-size:24px; color:var(--accent); }
+    .q-next .qn-sub { font-size:11.5px; color:#6e4d00; margin-top:4px; }
+    .q-next.done { background:#f3faf5; border-color:var(--green); }
+    .q-next.done .qn-main { color:var(--green); }
+    /* 救出した姫 */
+    .q-princess-title { font-size:12px; font-weight:700; color:var(--sub); margin:14px 0 6px; text-align:center; }
+    .q-princesses { display:flex; justify-content:center; gap:10px; }
+    .q-p { text-align:center; flex:0 0 auto; width:60px; }
+    .q-p .qp-face { font-size:34px; line-height:1.2; filter:grayscale(1) opacity(.35); transition:filter .4s ease; }
+    .q-p.got .qp-face { filter:none; }
+    .q-p .qp-name { font-size:10px; color:var(--sub); margin-top:2px; }
+    .q-p.got .qp-name { color:var(--green); font-weight:700; }
+    /* 内訳は小さく1行だけ */
+    .q-breakdown { text-align:center; font-size:12px; color:var(--sub); margin-top:12px;
+      padding-top:10px; border-top:1px solid #f0ece1; }
+    .q-breakdown span { display:inline-block; margin:0 5px; white-space:nowrap; }
+    .q-breakdown span.zero { opacity:.35; }
+    /* ミッション一覧 */
+    .missions { margin-top:16px; }
+    .missions-title { font-size:13px; font-weight:700; text-align:center; color:var(--sub); margin-bottom:10px; }
+    /* チカラで絞り込むタブ（既定は「すべて」。タブを理解しなくても遊べる） */
+    .m-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px;
+      -webkit-overflow-scrolling:touch; }
+    .m-tab { flex:0 0 auto; padding:7px 13px; border-radius:99px; border:1.5px solid #d9d4c6;
+      background:#fff; font-size:13px; font-weight:700; color:var(--sub); cursor:pointer; white-space:nowrap; }
+    .m-tab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    .m-tab .mt-n { font-weight:500; opacity:.75; margin-left:3px; font-size:11px; }
+    .m-empty { text-align:center; color:var(--sub); font-size:13px; padding:18px 8px; }
+    .mission-item { display:flex; align-items:center; gap:10px; padding:11px 12px;
+      border:1.5px solid #e3ddcd; border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; }
+    .mission-item.mine { border-color:#bcd9c6; background:#fbfefc; }
+    /* クリア済みは灰色にして押せなくする（下へまとめて移動する）*/
+    .mission-item.done { background:#f4f2ea; border-color:#e3ddcd; color:var(--sub);
+      cursor:default; pointer-events:none; }
+    .mission-item .box { width:22px; height:22px; border:2px solid #c9c2ad; border-radius:6px;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+    .mission-item.mine .box { border-color:var(--green); color:var(--green); }
+    /* チェック印だけは緑のまま＝「達成済み」であって「使えない」ではないと伝える */
+    .mission-item.done .box { background:var(--green); border-color:var(--green); color:#fff; }
+    .mission-item .m-body { flex:1; min-width:0; }
+    .mission-item .m-name { line-height:1.4; }
+    .mission-item.done .m-name { opacity:.75; }
+    .mission-item .m-meta { font-size:11px; color:var(--sub); margin-top:3px; font-weight:500; }
+    .mission-item.done .m-meta { color:var(--green); font-weight:700; }
+    /* クリアした直後の1件だけ光らせる（下へ移動しても見失わないように）*/
+    .mission-item.just-done { animation:mJustDone 1.1s ease-out both; }
+    @keyframes mJustDone {
+      0%   { background:#dff0e5; border-color:var(--green); transform:scale(1.02); }
+      60%  { background:#eef7f1; border-color:#bcd9c6; transform:scale(1); }
+      100% { background:#f4f2ea; border-color:#e3ddcd; }
+    }
+    /* ログイン期限切れの案内 */
+    #authExpired { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:300;
+      display:flex; align-items:center; justify-content:center; padding:24px; }
+    #authExpired .ae-card { width:320px; background:#fff; border-radius:14px; padding:22px 20px; text-align:center; }
+    #authExpired .ae-title { font-size:16px; font-weight:800; margin-bottom:10px; }
+    #authExpired .ae-text { font-size:13px; line-height:1.7; color:var(--sub); }
+    #authExpired .ae-btn { margin-top:16px; width:100%; padding:13px; font-size:15px; font-weight:800;
+      color:#fff; background:var(--green); border:none; border-radius:10px; cursor:pointer; }
+    /* ===== ⑬ パーティ登録（予約画面）===== */
+    .pmode { display:flex; flex-direction:column; gap:8px; }
+    .pm-opt { display:block; width:100%; text-align:left; padding:12px 14px; border-radius:12px;
+      border:1.5px solid #e3ddcd; background:#fff; cursor:pointer; font-family:inherit; }
+    .pm-opt.active { border-color:var(--green); background:#f3faf5; }
+    .pm-t { display:block; font-size:14.5px; font-weight:800; color:var(--ink); }
+    .pm-opt.active .pm-t { color:var(--green); }
+    .pm-d { display:block; font-size:12px; color:var(--sub); margin-top:3px; line-height:1.5; }
+    #joinCodeBox { margin-top:10px; }
+    #joinCode { width:100%; padding:14px; font-size:26px; font-weight:800; text-align:center;
+      letter-spacing:.32em; text-indent:.32em; text-transform:uppercase;
+      border:1.5px solid #d9d4c6; border-radius:12px; font-family:inherit; background:#fff; }
+    .pm-note { font-size:12px; color:var(--sub); line-height:1.6; margin-top:9px;
+      background:#f6f4ec; border-radius:8px; padding:9px 11px; }
+    /* コード発行のご案内 */
+    .pd-card { background:#fff; border:1.5px solid var(--green); border-radius:14px;
+      padding:22px 18px; text-align:center; }
+    .pd-lead { font-size:15px; font-weight:800; color:var(--green); }
+    .pd-code { font-size:42px; font-weight:900; letter-spacing:.18em; text-indent:.18em;
+      color:var(--ink); margin:12px 0 4px; }
+    .pd-sub { font-size:13px; color:var(--sub); }
+    .pd-text { font-size:13px; line-height:1.7; margin-top:14px; text-align:left;
+      background:#f6f4ec; border-radius:8px; padding:11px 13px; }
+    /* ⑭ 18歳未満 */
+    .minor-check { display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.6; margin-top:16px;
+      padding:10px 12px; border:1.5px solid #e3ddcd; border-radius:10px; background:#fff; cursor:pointer; }
+    .minor-check input { width:auto; margin-top:4px; }
+    #minorBox { margin-top:8px; }
+    #minorBox input, #iaCodeInput { width:100%; padding:12px 14px; font-size:15px; border:1px solid #d9d4c6; border-radius:10px; }
+    .resv-minor { flex:1 0 100%; order:2; font-size:12px; font-weight:700; color:#8a5a00; margin-top:5px; }
+    .resv-invite { flex:1 0 100%; order:4; margin-top:8px; }
+    .resv-invite button { font-size:12.5px; font-weight:800; color:var(--green); background:#fff;
+      border:1.5px solid var(--green); border-radius:8px; padding:6px 12px; cursor:pointer; }
+    .mi-row { font-size:13px; padding:8px 10px; border:1px solid #e3ddcd; border-radius:8px; margin-bottom:6px;
+      display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; }
+    .mi-row button { font-size:12px; background:none; border:none; color:var(--err); font-weight:700; cursor:pointer; }
+    /* ⑦決済：お支払い */
+    .pay-amount { font-size:34px; font-weight:900; color:var(--ink); margin:10px 0 2px; }
+    .pay-fine { font-size:11.5px; color:var(--sub); line-height:1.7; margin-top:10px; }
+    .pay-coupons { text-align:left; margin:14px 0 4px; }
+    .pay-coupons .pc-title { font-size:13px; font-weight:800; margin-bottom:6px; }
+    .pay-coupons label { display:flex; align-items:center; gap:8px; font-size:13.5px; padding:9px 11px;
+      border:1.5px solid #e3ddcd; border-radius:10px; margin-bottom:6px; cursor:pointer; background:#fff; }
+    .pay-coupons label.sel { border-color:var(--green); background:#f3faf6; }
+    .pay-coupons input { width:auto; margin:0; }
+    .pay-base { font-size:14px; color:var(--sub); text-decoration:line-through; margin-right:6px; font-weight:700; }
+    .kids-note { font-size:11px; color:var(--sub); margin-top:4px; }
+    .resv-kids-note { flex:1 0 100%; order:4; font-size:11.5px; color:var(--sub); margin-top:6px; }
+    .slot-price { display:inline-block; margin-left:8px; font-size:12px; font-weight:800; color:var(--ink); }
+    /* 予約一覧の「支払い待ち」 */
+    .resv-pay { flex:1 0 100%; order:3; margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .resv-pay .rp-wait { font-size:12px; font-weight:800; color:#b26a00;
+      background:#fff4e0; border-radius:6px; padding:3px 8px; }
+    .resv-pay .rp-go { font-size:12.5px; font-weight:800; color:#fff; background:var(--green);
+      border:none; border-radius:8px; padding:7px 14px; cursor:pointer; }
+    /* 予約一覧のパーティ表示（時刻の下に折り返す） */
+    .resv-item { flex-wrap:wrap; }
+    .resv-party { flex:1 0 100%; order:2; font-size:12px; color:var(--green);
+      font-weight:700; line-height:1.6; margin-top:5px; }
+    .resv-party .rp-code { background:#eaf6ef; border-radius:6px; padding:1px 7px; letter-spacing:.1em; }
+    /* ===== ミッション／パーティ の表示切替（チュートリアル後）===== */
+    .view-tabs { display:flex; gap:8px; margin:0 0 12px; }
+    .vtab { flex:1; padding:11px 8px; border-radius:10px; border:1.5px solid #d9d4c6; background:#fff;
+      font-size:14px; font-weight:800; color:var(--sub); cursor:pointer; line-height:1.35; }
+    .vtab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    .vtab small { display:block; font-size:11px; font-weight:500; opacity:.8; margin-top:1px; }
+    /* ===== チュートリアル ===== */
+    .tut-box { background:#f3f0e6; border:1.5px solid #e3ddcd; border-radius:12px;
+      padding:13px 14px; margin:0 0 14px; }
+    .tut-head { display:flex; align-items:center; gap:11px; }
+    /* 救出まで姿を見せない＝真っ黒なシルエット。救出の瞬間に初めて姿が出る */
+    .tut-face { flex:0 0 auto; font-size:36px; line-height:1; filter:brightness(0) opacity(.6);
+      animation:tutFloat 2.6s ease-in-out infinite; }
+    .tut-voice { flex:1; font-size:13.5px; line-height:1.6; color:var(--ink); font-weight:700; }
+    .tut-step { font-size:12px; color:var(--sub); margin-top:9px; padding-top:9px;
+      border-top:1px dashed #ddd6c4; }
+    @keyframes tutFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+    @media (prefers-reduced-motion:reduce) { .tut-face { animation:none; } }
+    /* パーティ名をつける行 */
+    .m-name-edit { flex:1 0 100%; display:flex; gap:6px; margin-top:8px; }
+    .m-name-edit input { flex:1; min-width:0; padding:8px 10px; font-size:14px;
+      border:1.5px solid #d9d4c6; border-radius:8px; font-family:inherit; }
+    .m-name-edit button { flex:0 0 auto; margin:0; padding:8px 14px; font-size:13px; font-weight:700;
+      color:#fff; background:var(--green); border:none; border-radius:8px; cursor:pointer; }
+    .m-declare { flex:1 0 100%; margin-top:7px; padding:8px 10px; background:#fffaf0; border:1px dashed #e6cf94;
+      border-radius:8px; font-size:14px; font-weight:800; text-align:center; }
+    /* 目的地が明かされるまでロックされる行 */
+    .mission-item.locked { background:#f4f2ea; border-style:dashed; color:var(--sub);
+      cursor:default; pointer-events:none; }
+    .mission-item.locked .box { border-color:#d9d4c6; color:var(--sub); }
+    /* 「クリア済み」の区切り線 */
+    .m-divider { display:flex; align-items:center; gap:8px; margin:16px 0 9px;
+      font-size:11.5px; font-weight:700; color:var(--sub); }
+    .m-divider::before, .m-divider::after { content:""; flex:1; height:1px; background:#ece8dc; }
+    @media (prefers-reduced-motion:reduce) { .mission-item.just-done { animation:none; } }
+    .share-btn { display:block; width:100%; margin:16px 0 0; padding:14px;
+      font-size:15px; font-weight:800; color:#fff; background:var(--accent); border:none; border-radius:12px; cursor:pointer; }
+
+    /* 姫の救出演出（全画面・スキップ可） */
+    #rescueOverlay { position:fixed; inset:0; background:rgba(18,11,0,.975); z-index:150;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; }
+    .rescue-burst { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+    .confetti { position:absolute; top:-12px; width:9px; height:14px; opacity:0; border-radius:2px;
+      animation:confFall linear forwards; }
+    @keyframes confFall {
+      0%   { opacity:1; transform:translateY(0) rotate(0deg); }
+      100% { opacity:0; transform:translateY(105vh) rotate(720deg); }
+    }
+    .rescue-face { font-size:110px; line-height:1; animation:rescuePop .9s cubic-bezier(.2,1.4,.4,1) both; }
+    @keyframes rescuePop {
+      0%   { transform:scale(.2) rotate(-14deg); opacity:0; }
+      60%  { transform:scale(1.18) rotate(4deg); opacity:1; }
+      100% { transform:scale(1) rotate(0deg); opacity:1; }
+    }
+    .rescue-title { color:#ffd77a; font-weight:800; font-size:20px; margin-top:10px; text-align:center;
+      animation:rescueUp .6s .35s ease both; }
+    .rescue-say { color:#fff; font-size:15px; line-height:1.8; margin-top:14px; text-align:center;
+      max-width:340px; white-space:pre-line; font-family:"Yomogi",-apple-system,"Hiragino Sans",sans-serif;
+      animation:rescueUp .6s .6s ease both; }
+    @keyframes rescueUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+    .rescue-btn { margin-top:26px; padding:13px 34px; font-size:15px; font-weight:800; color:#3b2a00;
+      background:#ffd77a; border:none; border-radius:99px; cursor:pointer;
+      animation:rescueUp .6s .9s ease both; }
+    .rescue-skip { position:absolute; top:18px; right:18px; background:none; border:none;
+      color:rgba(255,255,255,.7); font-size:13px; cursor:pointer; padding:8px; }
+    @media (prefers-reduced-motion: reduce) {
+      .rescue-face, .rescue-title, .rescue-say, .rescue-btn { animation-duration:.01s; }
+      .confetti { display:none; }
+    }
+
+    /* シェアカード オーバーレイ */
+    #shareOverlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; overflow:auto; }
+    .share-card { width:300px; background:linear-gradient(160deg,#fff,#f3faf5); border:3px solid var(--green);
+      border-radius:20px; padding:22px 18px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.3); }
+    .sc-head { font-size:17px; font-weight:800; color:var(--green); }
+    .sc-animal { font-size:80px; margin:6px 0; }
+    .sc-grown { font-size:14px; font-weight:700; }
+    .sc-pers { font-size:13px; color:var(--green); font-weight:700; margin-top:6px; }
+    .sc-line { font-size:12px; color:var(--sub); margin:14px 0 4px; }
+    .sc-members { font-size:14px; font-weight:700; line-height:1.7; }
+    .sc-mission { font-size:13px; margin-top:12px; font-weight:700; color:var(--accent); }
+    .sc-tag { font-size:14px; font-weight:800; color:var(--green); margin-top:8px; }
+    .sc-date { font-size:12px; color:var(--sub); margin-top:2px; }
+    .share-actions { display:flex; flex-direction:column; gap:10px; margin-top:18px; width:300px; }
+    .share-actions button { padding:13px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; background:#000; }
+    .share-actions .dl { background:var(--accent); }
+    .share-actions .close { background:#fff; color:var(--sub); border:1px solid #ccc; }
+    @media (prefers-reduced-motion: reduce) {
+      .animal, .cloud { animation:none !important; }
+    }
+
+    /* クーポン */
+    #couponBox { margin-top:8px; margin-bottom:20px; }
+    .coupon { display:flex; align-items:center; gap:12px; background:#fffaf0;
+      border:1.5px dashed var(--accent); border-radius:12px; padding:14px; margin-bottom:10px; }
+    .coupon .amt { font-size:22px; font-weight:800; color:var(--accent); white-space:nowrap; }
+    .coupon .amt.free { color:var(--green); }
+    .coupon .cinfo { font-size:12px; color:var(--sub); }
+
+    /* リベシティID入力 */
+    #codeBox { margin-bottom:20px; }
+    #codeBox .code-input { display:flex; gap:8px; }
+    #codeBox input { letter-spacing:.08em; flex:1; padding:12px 14px; font-size:15px; border:1px solid #d9d4c6;
+      border-radius:10px; background:#fff; }
+    #codeBox input:focus { outline:none; border-color:var(--green); }
+    #codeBox button { padding:0 16px; font-size:14px; font-weight:700; color:#fff;
+      background:var(--green); border:none; border-radius:10px; white-space:nowrap; }
+    #codeBox button:disabled { opacity:.5; }
+    #codeStatus { font-size:13px; margin-top:8px; min-height:18px; }
+
+    /* 予約済みカード */
+    .reserved { background:#eaf6ef; border:1.5px solid var(--green); border-radius:var(--radius);
+      padding:16px; margin-bottom:20px; }
+    .reserved .tag { font-size:12px; font-weight:700; color:var(--green); }
+    .reserved .slot { font-size:18px; font-weight:800; margin:4px 0 12px; }
+    .btn-cancel { width:100%; padding:12px; font-size:14px; font-weight:700; color:var(--err);
+      background:#fff; border:1.5px solid var(--err); border-radius:10px; cursor:pointer; }
+
+    /* スロット */
+    .section-title { font-size:14px; font-weight:700; margin-bottom:12px; }
+    .slot-card { display:block; background:#fff; border:1.5px solid #e3ddcd; border-radius:var(--radius);
+      padding:14px 16px; margin-bottom:12px; cursor:pointer; position:relative; transition:border-color .15s; }
+    .slot-card.sel { border-color:var(--green); background:#f3faf5; }
+    .slot-card.disabled { opacity:.5; cursor:not-allowed; }
+    .slot-card input { position:absolute; opacity:0; pointer-events:none; }
+    .slot-date { font-size:13px; color:var(--sub); }
+    .slot-time { font-size:18px; font-weight:800; }
+    .slot-meta { font-size:12px; margin-top:4px; }
+    .slot-meta .ok-rem { color:var(--green); font-weight:700; }
+    .slot-meta .full { color:var(--err); font-weight:700; }
+    .empty { text-align:center; color:var(--sub); font-size:14px; padding:24px 0; }
+
+    /* 完了 */
+    #screen-done { text-align:center; padding:40px 12px; }
+    #screen-done .mark { font-size:52px; }
+    #screen-done h2 { font-size:20px; color:var(--green); margin:12px 0 6px; }
+    #screen-done p { font-size:14px; color:var(--sub); }
+    .back-btn { margin-top:20px; font-size:14px; color:var(--green); background:none;
+      border:1px solid var(--green); border-radius:10px; padding:10px 20px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <!-- 起動中 -->
+  <div id="boot"><div class="spinner"></div>読み込み中…</div>
+
+  <!-- 登録 / 編集 -->
+  <div class="wrap hidden" id="screen-register">
+    <div class="head">
+      <div class="logo">100 Quest</div>
+      <p id="regSub">当日のグループ分けに使うプロフィールを登録してね</p>
+    </div>
+    <div class="me">
+      <img id="meIcon" src="" alt="" />
+      <div>
+        <div class="name" id="meName">—</div>
+        <div class="label">LINEアカウント連携済み ✓</div>
+      </div>
+    </div>
+    <form id="regForm">
+      <div class="field">
+        <label>ニックネーム<span class="req">必須</span></label>
+        <input type="text" id="nickname" maxlength="20" placeholder="当日呼ばれたい名前" autocomplete="off" />
+        <div class="hint">ひらがな・カタカナ・英字どれでもOK（20文字まで）</div>
+      </div>
+      <div class="field">
+        <label>性別</label>
+        <div class="select-wrap">
+          <select id="gender">
+            <option value="">選択しない</option>
+            <option value="男性">男性</option>
+            <option value="女性">女性</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>いちばん伸ばしたいチカラ</label>
+        <div class="select-wrap">
+          <!-- 選択肢は POWER_META（5つのチカラ）から作る。チカラの名前を差し替えればここも変わる -->
+          <select id="topic">
+            <option value="">選択しない</option>
+          </select>
+        </div>
+        <div class="hint">任意。パーティの仲間に表示されます</div>
+      </div>
+      <div class="field">
+        <label>フェスに来た理由</label>
+        <input type="text" id="topicDetail" maxlength="30" placeholder="例：初参加！講演を聞きに／仲間に誘われて" autocomplete="off" />
+        <div class="hint">任意・30文字まで。パーティの仲間に表示されます</div>
+      </div>
+      <div class="field">
+        <label>リベシティのプロフィールURL（任意）</label>
+        <input type="text" id="libeUrl" maxlength="120" placeholder="https://libecity.com/user_profile/…" autocomplete="off" />
+        <div class="hint">入力すると、同じパーティの仲間があなたのリベプロフィールを見られるよ（空欄でもOK・あとから追加/削除できます）</div>
+      </div>
+      <button type="submit" class="submit" id="regBtn">この内容で登録する</button>
+      <button type="button" class="back-btn hidden" id="regBackBtn" style="width:100%;margin-top:10px">戻る</button>
+      <div class="status" id="regStatus"></div>
+    </form>
+  </div>
+
+  <!-- ホーム：リッチメニュー -->
+  <div class="wrap hidden" id="screen-menu">
+    <div class="head"><div class="logo">100 Quest</div></div>
+    <div class="profile-bar">
+      <div>
+        <div class="pname" id="homeName">—</div>
+        <div class="pmeta" id="homeMeta"></div>
+      </div>
+      <button class="link-btn" id="editBtn">編集</button>
+    </div>
+    <div class="menu-grid">
+      <button class="menu-card" id="menuGroup"><span class="mi">🐣</span>マイグループ<small id="menuGroupSub">育成・集合場所</small></button>
+      <button class="menu-card" id="menuReserve"><span class="mi">📅</span>予約<small id="menuReserveSub">日時を選ぶ</small></button>
+      <button class="menu-card" id="menuCoupon"><span class="mi">🎟</span>クーポン<small id="menuCouponSub">&nbsp;</small></button>
+      <button class="menu-card" id="menuMap"><span class="mi">🗺</span>会場マップ<small>近日公開</small></button>
+      <button class="menu-card" id="menuFaq"><span class="mi">❓</span>よくある質問<small>困ったときは</small></button>
+      <button class="menu-card" id="menuContact"><span class="mi">✉️</span>運営に連絡<small>公式LINEへ</small></button>
+    </div>
+  </div>
+
+  <!-- マイグループ画面 -->
+  <div class="wrap hidden" id="screen-group">
+    <button class="back-link" data-back>← メニューに戻る</button>
+
+    <!-- 予約した時間帯の切り替え（複数予約のとき表示）-->
+    <div class="band-tabs hidden" id="bandTabs"></div>
+
+    <!-- 今やることバナー（状態に応じて表示） -->
+    <div class="action-banner hidden" id="actionBanner"></div>
+
+    <!-- 予約なしの案内 -->
+    <div class="placeholder hidden" id="noReserveBox">
+      まだ予約がありません。<br>メニューの「📅 予約」から参加日時を選んでね。
+    </div>
+
+    <!-- チュートリアル後の表示切替（ミッション／パーティ）。それまでは両方まとめて表示 -->
+    <div class="view-tabs hidden" id="viewTabs"></div>
+
+    <!-- マッチング後：グループ発表 -->
+    <div class="group-box hidden" id="groupBox">
+      <div class="lead" id="groupLead">🎉 あなたのパーティが決まりました</div>
+      <div class="gname" id="groupName">—</div>
+      <div class="gsub" id="groupSlot"></div>
+      <div class="group-members" id="groupMembers"></div>
+      <div class="checkin-status" id="checkinStatus"></div>
+    </div>
+
+    <!-- ⑩ クエスト（チカラ＋姫の救出） -->
+    <div class="quest-box hidden" id="questBox">
+      <div class="q-party" id="qParty">—<small id="qPartySub"></small></div>
+
+      <!-- ⑫チュートリアル：救出前のペンペン姫はシルエットで声だけ -->
+      <div class="tut-box hidden" id="tutBox">
+        <div class="tut-head">
+          <div class="tut-face" id="tutFace">🐧</div>
+          <div class="tut-voice" id="tutVoice"></div>
+        </div>
+        <div class="tut-step" id="tutStep"></div>
+      </div>
+
+      <!-- メインゲージ（1本だけ） -->
+      <div class="q-gauge-label">集めたチカラ</div>
+      <div class="gauge"><div class="gauge-fill" id="qGauge"></div></div>
+      <div class="q-gauge-num" id="qGaugeNum">0</div>
+
+      <!-- 「あと◯で△姫を救出！」＝最も目立たせる -->
+      <div class="q-next" id="qNext"></div>
+
+      <!-- 救出した姫 -->
+      <div class="q-princess-title">救出した姫</div>
+      <div class="q-princesses" id="qPrincesses"></div>
+
+      <!-- 内訳は小さく1行 -->
+      <div class="q-breakdown" id="qBreakdown"></div>
+
+      <div class="growth-timer hidden" id="growthTimer"></div>
+
+      <div class="missions">
+        <div class="missions-title" id="missionsTitle">ミッション（パーティ全員のチェックでクリア）</div>
+        <div class="m-tabs" id="missionTabs"></div>
+        <div id="missionList"></div>
+      </div>
+      <button class="share-btn hidden" id="shareBtn">🎉 結果カードを見る</button>
+    </div>
+
+    <!-- マッチング不成立の案内 -->
+    <div class="unmatched-box hidden" id="unmatchedBox">
+      <div class="um-title">😢 今回はグループが成立しませんでした</div>
+      <div class="um-text">人数が集まらず、グループを作れませんでした。<br>おわびにクーポンをお送りしました。次回ぜひご参加ください。</div>
+    </div>
+
+    <!-- グループ発表前 -->
+    <div class="placeholder hidden" id="groupPlaceholder">
+      まだグループは発表されていません。<br>当日のお楽しみに 🐣
+    </div>
+    <div class="status" id="groupStatus"></div>
+  </div>
+
+  <!-- 予約画面 -->
+  <div class="wrap hidden" id="screen-reserve">
+    <button class="back-link" data-back>← メニューに戻る</button>
+    <div class="screen-title">📅 参加予約</div>
+
+    <!-- 予約済みリスト（複数）＋追加ボタン -->
+    <div id="myReserveBox">
+      <div class="section-title">予約中の時間帯</div>
+      <div id="reserveList"></div>
+      <button class="add-resv-btn" id="addReserveBtn">＋ 別の時間帯を予約する</button>
+      <button class="back-link" id="inviteCodeLink" style="display:block;margin:12px auto 0;font-size:13px">👧 保護者から招待コードを受け取った方はこちら</button>
+    </div>
+
+    <!-- 日時選択 -->
+    <div class="hidden" id="chooseBox">
+      <div class="section-title">参加できる日時を選ぶ</div>
+      <div id="slotList"></div>
+
+      <!-- ⑬ だれと参加するか -->
+      <div class="section-title" style="margin-top:20px">だれと参加する？</div>
+      <div class="pmode" id="partyMode">
+        <button class="pm-opt active" data-mode="solo">
+          <span class="pm-t">🎲 新しい仲間と</span>
+          <span class="pm-d">当日その場で3〜5人のパーティを組みます</span>
+        </button>
+        <button class="pm-opt" data-mode="create">
+          <span class="pm-t">👑 いつもの仲間と（パーティを作る）</span>
+          <span class="pm-d">コードが出るので、仲間に伝えてね</span>
+        </button>
+        <button class="pm-opt" data-mode="join">
+          <span class="pm-t">🤝 いつもの仲間と（コードで参加）</span>
+          <span class="pm-d">仲間からもらったコードを入れてね</span>
+        </button>
+      </div>
+      <div class="hidden" id="joinCodeBox">
+        <input type="text" id="joinCode" maxlength="8" placeholder="A7K2"
+          autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" />
+        <div class="pm-note">仲間と<b>同じ日時</b>を選んでね。日時が違うと同じパーティになりません。</div>
+      </div>
+      <div class="pm-note hidden" id="partyNote">
+        2人以下のときは、当日ほかの参加者と合流して3〜5人のパーティになります。<br>
+        3人以上そろえば、そのままのメンバーで進みます（最大5人）。
+      </div>
+
+      <!-- 18歳未満の子どもが保護者のスマホで参加（保護者は付き添いのみ） -->
+      <label class="minor-check">
+        <input type="checkbox" id="minorBorrowed" />
+        <span>参加するのは<b>18歳未満の子ども</b>です（保護者として同意し、付き添います）</span>
+      </label>
+      <div class="hidden" id="minorBox">
+        <input type="text" id="participantNickname" maxlength="20" placeholder="参加するお子さまのニックネーム" autocomplete="off" />
+        <div class="pm-note">
+          参加費は<b>無料</b>です。パーティの仲間には、この名前が表示されます。付き添いの保護者の方はパーティの人数に数えません。<br>
+          当日の受付で、スタッフが年齢を確認します。「お子さまは参加できない枠です」と書かれた枠は選べません。<br>
+          お子さまが自分のスマホとLINEを持っている場合は、保護者の方が予約してから「👧 お子さまを招待」を使ってください。
+        </div>
+      </div>
+
+      <div class="pm-note">
+        <b>予約締切を過ぎるとキャンセルできません。</b>締切の時点でパーティが決まるためです。<br>
+        締切後にご都合が悪くなった場合は、公式LINEからご連絡ください。
+      </div>
+      <button class="submit" id="reserveBtn" disabled>この日時で予約する</button>
+      <button class="back-link" id="chooseBackBtn" style="display:block;margin:10px auto 0">予約一覧に戻る</button>
+    </div>
+
+    <!-- パーティを作ったあとのコード案内 -->
+    <div class="hidden" id="partyDoneBox">
+      <div class="pd-card">
+        <div class="pd-lead">👑 パーティを作りました</div>
+        <div class="pd-code" id="pdCode">----</div>
+        <div class="pd-sub" id="pdSlot"></div>
+        <div class="pd-text">
+          このコードを仲間に伝えてね。<br>
+          仲間は<b>同じ日時</b>を選んで「コードで参加」から入力すると、同じパーティになります。
+        </div>
+        <button class="submit" id="pdCopyBtn">コードをコピー</button>
+        <button class="back-link" id="pdDoneBtn" style="display:block;margin:10px auto 0">予約一覧に戻る</button>
+      </div>
+    </div>
+
+    <!-- ⑭ 18歳未満：お子さまを招待（保護者） -->
+    <div class="hidden" id="minorInviteBox">
+      <div class="pd-card">
+        <div class="pd-lead">👧 お子さまを招待</div>
+        <div class="pd-sub" id="miSlot"></div>
+        <div class="pd-text">
+          お子さまが<b>自分のスマホとLINE</b>で参加するための招待です。<br>
+          ・参加費は無料。保護者の方と<b>必ず同じパーティ</b>になります<br>
+          ・招待できるのは<b>2人まで</b>。お子さまも席を1つ使います<br>
+          ・保護者の方がキャンセルすると、お子さまの予約も取り消されます<br>
+          ・当日の受付で、スタッフが年齢を確認します
+        </div>
+        <div id="miList" style="margin-top:12px;text-align:left"></div>
+        <div id="miCreate">
+          <label class="minor-check" style="text-align:left">
+            <input type="checkbox" id="miConsent" />
+            <span>18歳未満の子どもで、保護者として参加に同意します</span>
+          </label>
+          <button class="submit" id="miCreateBtn">招待を作る</button>
+        </div>
+        <div id="miNew" class="hidden" style="margin-top:12px">
+          <div class="pd-sub">招待コード</div>
+          <div class="pd-code" id="miCode" style="font-size:30px">----</div>
+          <button class="submit" id="miShareBtn">LINEで送る</button>
+          <button class="back-link" id="miCopyBtn" style="display:block;margin:8px auto 0">招待リンクをコピー</button>
+          <div class="pay-fine">お子さまのスマホでリンクを開いてもらうか、アプリの予約画面で上のコードを入力してもらいます。</div>
+        </div>
+        <button class="back-link" id="miBackBtn" style="display:block;margin:12px auto 0">予約一覧に戻る</button>
+      </div>
+    </div>
+
+    <!-- ⑭ 18歳未満：招待を受ける（お子さま） -->
+    <div class="hidden" id="inviteAcceptBox">
+      <div class="pd-card">
+        <div class="pd-lead">👧 参加の招待</div>
+        <div id="iaCodeInputWrap" class="hidden" style="margin-top:10px">
+          <input type="text" id="iaCodeInput" placeholder="ABCD-EFGH" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" maxlength="20" />
+          <button class="submit" id="iaLookupBtn">招待を確認する</button>
+        </div>
+        <div id="iaDetail" class="hidden">
+          <div class="pd-sub" id="iaFrom"></div>
+          <div class="pd-code" id="iaSlot" style="font-size:22px;letter-spacing:0;text-indent:0"></div>
+          <div class="pd-text">
+            参加費は<b>無料</b>です（18歳未満）。<br>
+            保護者の方と同じパーティで参加します。当日は<b>保護者の方と一緒に受付</b>してください。受付でスタッフが年齢を確認します。
+          </div>
+          <button class="submit" id="iaAcceptBtn">この招待で参加する</button>
+        </div>
+        <button class="back-link" id="iaBackBtn" style="display:block;margin:12px auto 0">予約一覧に戻る</button>
+      </div>
+    </div>
+
+    <!-- ⑦決済：お支払い -->
+    <div class="hidden" id="payBox">
+      <div class="pd-card">
+        <div class="pd-lead">💳 お支払いに進む</div>
+        <div class="pd-sub" id="paySlot"></div>
+        <div class="pay-amount" id="payAmount">—</div>
+        <div class="pd-text">
+          お支払いが済むと予約が確定します。<br>
+          <span id="payHold"></span>
+        </div>
+        <div id="payCoupons" class="pay-coupons hidden"></div>
+        <button class="submit" id="payBtn">お支払いに進む</button>
+        <div class="pay-fine">
+          クレジットカード／PayPayが使えます。<br>
+          ご利用明細には「100PUN QUEST」と表示されます。
+        </div>
+        <button class="back-link" id="payLaterBtn" style="display:block;margin:10px auto 0">あとで支払う（予約一覧へ）</button>
+      </div>
+    </div>
+
+    <div class="status" id="homeStatus"></div>
+  </div>
+
+  <!-- クーポン画面 -->
+  <div class="wrap hidden" id="screen-coupon">
+    <button class="back-link" data-back>← メニューに戻る</button>
+    <div class="screen-title">🎟 クーポン</div>
+
+    <!-- 所持クーポン -->
+    <div id="couponBox">
+      <div class="section-title">お持ちのクーポン</div>
+      <div id="couponList"></div>
+    </div>
+
+    <!-- クーポンコード（運営から受け取ったコードを入力） -->
+    <div id="codeBox">
+      <div class="section-title">🎫 クーポンコードを入力</div>
+      <div class="code-input">
+        <input type="text" id="codeInput" placeholder="ABCD-EFGH" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text" maxlength="20" />
+        <button id="codeBtn">登録</button>
+      </div>
+      <div id="codeStatus"></div>
+    </div>
+
+    <div class="status" id="couponStatus"></div>
+  </div>
+
+  <!-- 完了 -->
+  <div class="wrap hidden" id="screen-done">
+    <div class="mark">🎉</div>
+    <h2 id="doneTitle">完了しました</h2>
+    <p id="doneMsg"></p>
+    <button class="back-btn" id="doneBackBtn">トップに戻る</button>
+  </div>
+
+  <!-- メンバープロフィール モーダル -->
+  <div id="memberOverlay" class="hidden">
+    <div class="member-card">
+      <div class="mc-name" id="mcName">—</div>
+      <div class="mc-row"><span class="mc-label">性別</span><span id="mcGender">—</span></div>
+      <div class="mc-row"><span class="mc-label">伸ばしたいチカラ</span><span id="mcTopic">—</span></div>
+      <div class="mc-detail-label">フェスに来た理由</div>
+      <div class="mc-detail" id="mcDetail">—</div>
+      <button class="mc-libe hidden" id="mcLibe">🔗 リベシティのプロフィールを見る</button>
+      <button id="mcClose">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 危険操作の2段階確認モーダル -->
+  <div id="confirmOverlay" class="hidden">
+    <div class="confirm-card">
+      <div class="cc-title" id="ccTitle">確認</div>
+      <div class="cc-body" id="ccBody"></div>
+      <div class="cc-target" id="ccTarget"></div>
+      <div class="cc-step" id="ccStep"></div>
+      <div class="cc-btns">
+        <button class="cc-cancel" id="ccCancel">やめる</button>
+        <button class="cc-ok" id="ccOk">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑩ 姫の救出演出（全画面・スキップ可） -->
+  <div id="rescueOverlay" class="hidden">
+    <div class="rescue-burst" id="rescueBurst"></div>
+    <button class="rescue-skip" id="rescueSkip">スキップ ▶</button>
+    <div class="rescue-face" id="rescueFace">🐧</div>
+    <div class="rescue-title" id="rescueTitle">ペンペン姫を救出した！</div>
+    <div class="rescue-say" id="rescueSay"></div>
+    <button class="rescue-btn" id="rescueNext">つづける</button>
+  </div>
+
+  <!-- ⑩ 結果カード オーバーレイ -->
+  <div id="shareOverlay" class="hidden">
+    <div class="share-card" id="shareCard">
+      <div class="sc-head" id="scHead">クエスト達成！</div>
+      <div class="sc-animal" id="scAnimal">🐧🐬🐼🐯</div>
+      <div class="sc-grown" id="scGrown">4人の姫を救出した！</div>
+      <div class="sc-pers" id="scPers"></div>
+      <div class="sc-line">━ 一緒に旅した仲間 ━</div>
+      <div class="sc-members" id="scMembers"></div>
+      <div class="sc-mission" id="scMission">集めたチカラ 20 ⭐️</div>
+      <div class="sc-tag">#100分クエスト</div>
+      <div class="sc-date" id="scDate"></div>
+    </div>
+    <div class="share-actions">
+      <button id="xShareBtn">リベでつぶやく</button>
+      <button id="dlBtn" class="dl">🎁 記念画像をダウンロード</button>
+      <button id="closeShareBtn" class="close">閉じる</button>
+    </div>
+    <canvas id="dlCanvas" width="600" height="800" style="display:none"></canvas>
+  </div>
+
+  <script>
+    // 接続先は「開いた場所」で自動で切り替える。本番と開発用で同じファイルをそのままアップロードしてよい。
+    //   本番   = https://yuki-natori.github.io/bocchi-liff/…
+    //   開発用 = それ以外（開発用リポジトリ・手元で開いた場合など）。本番につながらない側に倒す
+    const ENVS = {
+      prod: { liffId: "2010205663-iIzLQGpb", base: "https://asia-northeast1-bocchi-liff-test.cloudfunctions.net" },
+      dev:  { liffId: "2011758584-fcsU80Vx", base: "https://asia-northeast1-quest100-kaihatsu.cloudfunctions.net" }
+    };
+    const ENV_NAME = location.pathname.startsWith("/bocchi-liff/") ? "prod" : "dev";
+    const LIFF_ID = ENVS[ENV_NAME].liffId;
+    const BASE = ENVS[ENV_NAME].base;
+    // 開発用で開いているときは画面の隅に目印を出す（本番と取り違えないため）
+    if (ENV_NAME !== "prod") {
+      document.title = "【開発用】" + document.title;
+      const b = document.createElement("div");
+      b.textContent = "開発用";
+      b.style.cssText = "position:fixed;top:0;left:0;z-index:9999;background:#d33;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-bottom-right-radius:6px;pointer-events:none";
+      document.addEventListener("DOMContentLoaded", () => document.body.appendChild(b));
+      if (document.body) document.body.appendChild(b);
+    }
+
+    let profile = null;       // LINEプロフィール
+    let currentUser = null;   // Firestoreのユーザー情報（未登録ならnull）
+    let selectedSlotId = null;
+    let checkinJustDone = null; // チェックインリンクで開いた直後の結果
+    let checkinError = null;
+
+    const $ = (id) => document.getElementById(id);
+    // LINEの本人確認トークン。サーバー側で検証して「本人の操作か」を確かめる。
+    // URLのパラメータに載せるとアクセスログに残るため、POSTの本文で送る。
+    let liffIdToken = null;
+    // 現在のトークンを取り直す。変わっていれば true（＝もう一度試す価値がある）
+    function refreshIdToken() {
+      try {
+        const t = (typeof liff !== "undefined" && liff.getIDToken) ? liff.getIDToken() : null;
+        if (t && t !== liffIdToken) { liffIdToken = t; return true; }
+      } catch (e) {}
+      return false;
+    }
+    const api = async (path, params, retried) => {
+      const body = Object.assign({}, params || {});
+      refreshIdToken();
+      if (liffIdToken) body.idToken = liffIdToken;
+      const res = await fetch(BASE + "/" + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      // 本人確認が切れたとき：一度だけトークンを取り直して再試行し、
+      // それでもだめなら案内を出す（黙って失敗させない）
+      if (res.status === 401 || res.status === 403) {
+        if (data && data.authRequired) {
+          if (!retried && refreshIdToken()) return api(path, params, true);
+          showAuthExpired();
+        }
+      }
+      return data;
+    };
+
+    // ログインの有効期限切れの案内。全画面に出して、開き直す操作へ誘導する。
+    let authExpiredShown = false;
+    function showAuthExpired() {
+      if (authExpiredShown) return;
+      authExpiredShown = true;
+      if (typeof stopGroupPoll === "function") stopGroupPoll();
+      if (typeof stopTick === "function") stopTick();
+      const el = document.createElement("div");
+      el.id = "authExpired";
+      el.innerHTML =
+        '<div class="ae-card">' +
+        '<div class="ae-title">ログインの有効期限が切れました</div>' +
+        '<div class="ae-text">安全のため、一定時間で確認をやり直しています。<br>' +
+        'ボタンを押すと開き直せます。進行中のクエストはそのまま続けられます。</div>' +
+        '<button class="ae-btn" id="aeReload">開き直す</button></div>';
+      document.body.appendChild(el);
+      document.getElementById("aeReload").addEventListener("click", () => {
+        try { if (typeof liff !== "undefined" && liff.login) { liff.login({ redirectUri: location.href }); return; } } catch (e) {}
+        location.reload();
+      });
+    }
+    const SCREENS = ["boot","screen-menu","screen-register","screen-group","screen-reserve","screen-coupon","screen-done"];
+    function showScreen(name) {
+      SCREENS.forEach(id => { $(id).classList.toggle("hidden", id !== name); });
+      if (name !== "screen-group" && typeof stopTick === "function") { stopTick(); stopGroupPoll(); } // 画面を離れたら自動更新を停止
+      window.scrollTo(0, 0);
+    }
+    function setStatus(id, m, c) { const e=$(id); e.textContent=m; e.className="status "+(c||""); }
+    // ユーザー入力（ニックネーム等）やAPI応答をinnerHTMLに入れる前は必ずこれでエスケープする
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+    function formatSlot(date, time) {
+      const d = new Date(date + "T00:00:00+09:00");
+      const w = ["日","月","火","水","木","金","土"][d.getDay()];
+      return (d.getMonth()+1) + "/" + d.getDate() + "(" + w + ") " + time;
+    }
+
+    // ===== 起動 =====
+    let pendingInviteCode = null;   // 招待リンクから来て、先にプロフィール登録が必要な人
+    async function main() {
+      if (!LIFF_ID || !BASE) return bootError("接続先が未設定です（" + ENV_NAME + "）");
+      try { await liff.init({ liffId: LIFF_ID }); }
+      catch (e) { return bootError("LIFF初期化に失敗: " + e.message); }
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      // 本人確認トークンを取得（取れない環境でも動くように失敗は無視する）
+      try { liffIdToken = liff.getIDToken ? liff.getIDToken() : null; } catch (e) { liffIdToken = null; }
+      try { profile = await liff.getProfile(); }
+      catch (e) { return bootError("プロフィール取得に失敗: " + e.message); }
+
+      $("meName").textContent = profile.displayName || "—";
+      if (profile.pictureUrl) $("meIcon").src = profile.pictureUrl;
+
+      const r = await api("getUser", { lineUserId: profile.userId });
+      // 起動時に本人確認で弾かれた場合は、登録画面を出さずに開き直す
+      // （ここで登録画面を出すと、登録済みの人に新規登録を求めてしまう）
+      if (r && r.authRequired) {
+        try { if (liff.login) { liff.login({ redirectUri: location.href }); return; } } catch (e) {}
+        return bootError("ログインの有効期限が切れました。アプリを開き直してください。");
+      }
+      currentUser = r.user;
+
+      // チェックインリンク（?mode=checkin&slot=…）で開かれたら、その枠をチェックイン
+      const qp = new URLSearchParams(window.location.search);
+      const mode = qp.get("mode");
+      const checkinSlot = qp.get("slot");
+      if (currentUser && mode === "checkin" && checkinSlot) {
+        const c = await api("checkIn", { lineUserId: profile.userId, slotId: checkinSlot });
+        if (!c.ok) checkinError = c.error || "チェックインに失敗しました";
+      }
+
+      if (!currentUser) {
+        // 招待リンクから来た人は、登録が済んだら招待の画面へ進める
+        if (mode === "invite" && qp.get("code")) pendingInviteCode = qp.get("code");
+        openRegister(false); // 新規登録
+        if (pendingInviteCode) $("regSub").textContent = "招待を受けるには、まずあなたのプロフィールを登録してね";
+      } else if (mode === "checkin" && checkinSlot) {
+        await openGroup(checkinSlot); // チェックインリンク → その枠のマイグループへ
+      } else if (mode === "invite" && qp.get("code")) {
+        await openInviteAccept(qp.get("code")); // 保護者からの招待リンク
+      } else if (mode === "paid" && qp.get("slot")) {
+        await afterPayment(qp.get("slot"), qp.get("canceled") === "1"); // 支払い画面から戻ってきた
+      } else {
+        openMenu();
+      }
+    }
+    function bootError(m) {
+      $("boot").innerHTML = '<p class="ng">エラー</p><p style="font-size:13px;color:#6b6b63;margin-top:8px">'+esc(m)+'</p>';
+    }
+
+    // ===== 登録 / 編集画面 =====
+    function openRegister(isEdit) {
+      $("regSub").textContent = isEdit ? "プロフィールを編集できます" : "パーティの仲間に表示されるプロフィールを登録してね";
+      $("regBtn").textContent = isEdit ? "この内容で更新する" : "この内容で登録する";
+      $("regBackBtn").classList.toggle("hidden", !isEdit);
+      // 既存値で埋める（編集時）／LINE名で埋める（新規時）
+      $("nickname").value = currentUser ? (currentUser.nickname || "") : (profile.displayName || "");
+      $("gender").value   = currentUser ? (currentUser.gender || "") : "";
+      // 「いちばん伸ばしたいチカラ」の選択肢を5つのチカラから作る（初回だけ）
+      const tsel = $("topic");
+      if (tsel.options.length <= 1) {
+        POWER_ORDER.forEach((k) => {
+          const o = document.createElement("option");
+          o.value = k; o.textContent = POWER_META[k].emoji + POWER_META[k].label;
+          tsel.appendChild(o);
+        });
+      }
+      // 旧プロフィールの「話題」（お金・投資など）はサーバー側で空にして返すので「選択しない」になる
+      tsel.value = currentUser && POWER_META[currentUser.topic] ? currentUser.topic : "";
+      $("topicDetail").value = currentUser ? (currentUser.topicDetail || "") : "";
+      // リベID保存済みならURLの形で見せる（クーポン連携で登録済みの人も自動で入る）
+      $("libeUrl").value = (currentUser && currentUser.libeId) ? "https://libecity.com/user_profile/" + currentUser.libeId : "";
+      setStatus("regStatus", "", "");
+      $("regBtn").disabled = false;
+      showScreen("screen-register");
+    }
+
+    $("regForm").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const nickname = $("nickname").value.trim();
+      if (!nickname) { setStatus("regStatus", "ニックネームを入力してください", "ng"); return; }
+      $("regBtn").disabled = true;
+      setStatus("regStatus", "送信中…", "");
+      const r = await api("registerUser", {
+        lineUserId: profile.userId,
+        displayName: profile.displayName || "",
+        nickname: nickname,
+        gender: $("gender").value,
+        topic: $("topic").value,
+        topicDetail: $("topicDetail").value.trim(),
+        libeUrl: $("libeUrl").value.trim()
+      });
+      if (r.ok) {
+        // 最新のユーザー情報を取り直してホームへ
+        const u = await api("getUser", { lineUserId: profile.userId });
+        currentUser = u.user;
+        if (pendingInviteCode) { const c = pendingInviteCode; pendingInviteCode = null; await openInviteAccept(c); return; }
+        $("doneTitle").textContent = r.isNew ? "登録が完了しました" : "プロフィールを更新しました";
+        $("doneMsg").textContent = r.isNew ? "続いて参加日時を予約しましょう。" : "";
+        showScreen("screen-done");
+      } else {
+        setStatus("regStatus", "エラー：" + (r.error || ""), "ng");
+        $("regBtn").disabled = false;
+      }
+    });
+    $("regBackBtn").addEventListener("click", openMenu);
+
+    // ===== メニュー（リッチメニュー風ホーム）=====
+    async function openMenu() {
+      $("homeName").textContent = (currentUser.nickname || "") + " さん";
+      $("homeMeta").textContent = [currentUser.gender, powerLabel(currentUser.topic)].filter(Boolean).join("・");
+      // 各メニューの状態ラベルを更新（予約は複数対応）
+      const [mine, myCoupons] = await Promise.all([
+        api("getMyReservation", { lineUserId: profile.userId }),
+        api("getMyCoupons", { lineUserId: profile.userId })
+      ]);
+      const resvs = mine.reservations || [];
+      $("menuReserveSub").textContent = resvs.length ? (resvs.length + "件予約中") : "未予約・日時を選ぶ";
+      // グループ状況は予約への書き戻し（groupName/unmatched）から判定
+      const anyGroup = resvs.some((r) => r.groupName);
+      const anyUnmatched = resvs.some((r) => r.unmatched);
+      $("menuGroupSub").textContent = !resvs.length ? "予約してね"
+        : anyGroup ? "グループ発表中！" : anyUnmatched ? "今回は不成立" : "発表前";
+      const cn = (myCoupons.coupons || []).length;
+      $("menuCouponSub").innerHTML = cn ? '<span class="badge">' + cn + '枚</span>' : "なし";
+      showScreen("screen-menu");
+    }
+    $("menuGroup").addEventListener("click", openGroup);
+    $("menuReserve").addEventListener("click", openReserve);
+    $("menuCoupon").addEventListener("click", openCoupon);
+    // 外部リンクを開く（LINE内ではliff、外ではwindow.open）
+    function openExternal(url) {
+      if (window.liff && liff.openWindow) liff.openWindow({ url: url, external: true });
+      else window.open(url, "_blank");
+    }
+    // プロフィールの確認・編集はロゴ下の「編集」ボタンに集約（menuProfileカードは廃止）
+    $("menuMap").addEventListener("click", () => alert("🗺 会場マップは近日公開予定です。\n当日をお楽しみに！"));
+    $("menuFaq").addEventListener("click", () => openExternal("https://yuki-natori.github.io/bocchi-liff/faq.html"));
+    $("menuContact").addEventListener("click", () => openExternal("https://line.me/R/ti/p/@534oibuu"));
+    document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", openMenu));
+
+    // ===== マイグループ画面（複数予約対応）=====
+    let currentGroupSlotId = null;
+    let myReservationsCache = [];
+
+    async function openGroup(preferredSlotId) {
+      setStatus("groupStatus", "", "");
+      const mine = await api("getMyReservation", { lineUserId: profile.userId });
+      myReservationsCache = mine.reservations || [];
+      showScreen("screen-group");
+      if (!myReservationsCache.length) {
+        // 予約なし
+        ["groupBox","questBox","unmatchedBox","groupPlaceholder"].forEach((id) => $(id).classList.add("hidden"));
+        $("bandTabs").classList.add("hidden");
+        $("noReserveBox").classList.remove("hidden");
+        return;
+      }
+      $("noReserveBox").classList.add("hidden");
+      // 表示する枠を決定（指定があればそれ、なければ先頭）
+      const exists = myReservationsCache.some((r) => r.slotId === preferredSlotId);
+      currentGroupSlotId = exists ? preferredSlotId : myReservationsCache[0].slotId;
+      renderBandTabs();
+      await renderGroupDetail(currentGroupSlotId);
+    }
+
+    // 予約した時間帯のタブ（2件以上で表示）
+    function renderBandTabs() {
+      const tabs = $("bandTabs");
+      if (myReservationsCache.length <= 1) { tabs.classList.add("hidden"); tabs.innerHTML = ""; return; }
+      tabs.classList.remove("hidden");
+      tabs.innerHTML = "";
+      myReservationsCache.forEach((r) => {
+        const b = document.createElement("button");
+        b.className = "band-tab" + (r.slotId === currentGroupSlotId ? " active" : "");
+        b.textContent = formatSlot(r.date, r.time);
+        b.onclick = async () => {
+          currentGroupSlotId = r.slotId;
+          clearedSeen = null; // 別のパーティに切り替えたら「今クリアした」判定をやり直す
+          groupView = "quest";
+          renderBandTabs(); await renderGroupDetail(r.slotId);
+        };
+        tabs.appendChild(b);
+      });
+    }
+
+    async function renderGroupDetail(slotId) {
+      ["actionBanner","viewTabs","groupBox","questBox","unmatchedBox","groupPlaceholder"]
+        .forEach((id) => $(id).classList.add("hidden"));
+      currentGroup = null;
+      const myGroup = await api("getMyGroup", { lineUserId: profile.userId, slotId: slotId });
+      if (myGroup.group && myGroup.group.status === "failed") {
+        // 不在で不成立 → お詫び案内
+        $("unmatchedBox").classList.remove("hidden");
+      } else if (myGroup.group) {
+        currentGroup = myGroup.group;
+        renderGroup(myGroup.group);
+        $("groupBox").classList.remove("hidden");
+        await loadQuest(slotId);
+      } else if (myGroup.unmatched) {
+        $("unmatchedBox").classList.remove("hidden");
+      } else {
+        $("groupPlaceholder").classList.remove("hidden");
+      }
+      renderActionBanner();
+      if (currentGroup) startGroupPoll(); // グループ表示中は10秒ごとに自動更新
+      if (checkinError) { setStatus("groupStatus", "⚠️ " + checkinError, "ng"); checkinError = null; }
+    }
+
+    // ===== 今やることバナー＋カウントダウン =====
+    let currentGroup = null;       // 表示中の枠のグループ情報（getMyGroupの結果）
+    let tickInterval = null;       // カウントダウンのタイマー
+    let autoRefreshedAt = 0;       // お題解放の境界越えで再取得した時刻（連打防止）
+
+    // スロット時間帯の先頭 "HH:MM" → その日のエポックms（JST）
+    function slotStartMs(dateStr, timeStr) {
+      const m = (timeStr || "").match(/(\d{1,2}):(\d{2})/);
+      if (!m || !dateStr) return null;
+      return new Date(dateStr + "T" + String(m[1]).padStart(2, "0") + ":" + m[2] + ":00+09:00").getTime();
+    }
+    function fmtHM(ms) { const d = new Date(ms); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); }
+    function fmtMMSS(ms) {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    }
+
+    function renderActionBanner() {
+      const box = $("actionBanner");
+      const g = currentGroup;
+      if (!g || g.status === "failed") { box.classList.add("hidden"); return; }
+      const now = Date.now();
+      const startMs = slotStartMs(g.date, g.time);
+      const endMs = g.endsAt ? Date.parse(g.endsAt) : null;
+      let html = "";
+
+      if (g.status === "waiting") {
+        if (!g.checkedIn) {
+          // 開始前・未チェックイン → 会場での受付。チェックインは開始10分前から
+          const openMs = startMs ? startMs - 10 * 60000 : null;
+          const beforeWindow = openMs && now < openMs;
+          html = '<div class="ab-title">⏰ ' + (startMs ? fmtHM(startMs) + 'までに ' : '') + '会場で受付をしよう</div>' 
+            + (beforeWindow
+              ? '<div class="ab-sub">🕐 チェックインは ' + fmtHM(openMs) + ' から（開始10分前）できます</div>'
+              : '<button class="ab-btn" id="abCheckinBtn">✋ 到着しました（チェックイン）</button>');
+        } else {
+          // 開始前・チェックイン済み → 待つだけ
+          html = '<div class="ab-title">✅ チェックイン済み</div>'
+            + '<div class="ab-sub">全員そろうと自動でスタートします'
+            + (startMs ? '（遅くとも ' + fmtHM(startMs + (g.deadlineMin || 10) * 60000) + ' に開始）' : '') + '</div>';
+        }
+      } else if (g.status === "started") {
+        if (endMs && now >= endMs) {
+          // 終了後 → 結果カード＆ノベルティ案内
+          html = '<div class="ab-title">🎉 クエスト終了！おつかれさまでした</div>'
+            + '<div class="ab-sub">ノベルティは運営ブースで受け取ってね</div>'
+            + (questData ? '<button class="ab-btn" id="abShareBtn">🎁 結果カードを見る</button>' : '');
+        } else if (questData && questData.phase === "tutorial") {
+          // チュートリアル中 → 「今やること」は姫の救出ではなく目の前の4つ
+          const t = questData.tutorial || {};
+          const left = (questData.missions || []).filter((m) => !m.cleared).length;
+          html = '<div class="ab-label">まずはチュートリアル</div>'
+            + (t.destination
+              ? '<div class="ab-title">🚶 ' + esc(t.destination) + ' へ全員で移動しよう</div>'
+                + '<div class="ab-sub">ペンペン姫はそこにいる。着いたらチェックしてね</div>'
+              : '<div class="ab-title">ブース前で ' + left + ' つのミッション</div>'
+                + '<div class="ab-sub">3つ終えると、ペンペン姫が行き先を教えてくれるよ</div>');
+        } else if (questData && questData.next) {
+          // クエスト中 → 次の姫まであと何チカラか（最も行動を促す表示）
+          const n = questData.next;
+          if (n.remaining > 0) {
+            html = '<div class="ab-label">次の目標</div>'
+              + '<div class="ab-title">あと ' + n.remaining + ' で ' + n.emoji + esc(n.name) + 'を救出！</div>'
+              + '<div class="ab-sub">ミッションはパーティ全員のチェックでクリア</div>';
+          } else if (n.requireAllPowers && n.missingPowers.length) {
+            const need = n.missingPowers.map((k) => POWER_META[k].emoji + POWER_META[k].label).join("・");
+            html = '<div class="ab-label">次の目標</div>'
+              + '<div class="ab-title">' + n.emoji + esc(n.name) + 'まであと少し！</div>'
+              + '<div class="ab-sub">' + need + ' のミッションをクリアしよう</div>';
+          } else {
+            html = '<div class="ab-title">' + n.emoji + esc(n.name) + 'を救出できる！</div>';
+          }
+        } else if (questData) {
+          html = '<div class="ab-title">🎉 4人の姫を全員救出！</div>'
+            + '<div class="ab-sub">集めたチカラ ' + questData.totalPower + '</div>';
+        }
+      }
+
+      if (!html) { box.classList.add("hidden"); return; }
+      box.innerHTML = html;
+      box.classList.remove("hidden");
+      const cb = $("abCheckinBtn"); if (cb) cb.onclick = doCheckinFromBanner;
+      const sb = $("abShareBtn"); if (sb) sb.onclick = openShareCard;
+    }
+
+    async function doCheckinFromBanner() {
+      const b = $("abCheckinBtn");
+      if (b) { b.disabled = true; b.textContent = "チェックイン中…"; }
+      const r = await api("checkIn", { lineUserId: profile.userId, slotId: currentGroupSlotId });
+      if (r.ok) await renderGroupDetail(currentGroupSlotId);
+      else {
+        setStatus("groupStatus", "⚠️ " + (r.error || "チェックインに失敗しました"), "ng");
+        if (b) { b.disabled = false; b.textContent = "✋ 到着しました（チェックイン）"; }
+      }
+    }
+
+    // ===== グループ画面の自動更新（10秒ごと） =====
+    // 仲間のチェックイン・お題チェック・開始/終了の状態変化を、開き直さなくても反映する。
+    const GROUP_POLL_MS = 10000;
+    let groupPollInterval = null;
+    let groupPollBusy = false;
+    function startGroupPoll() {
+      stopGroupPoll();
+      groupPollInterval = setInterval(refreshGroupQuiet, GROUP_POLL_MS);
+    }
+    function stopGroupPoll() {
+      if (groupPollInterval) { clearInterval(groupPollInterval); groupPollInterval = null; }
+    }
+    async function refreshGroupQuiet() {
+      // 画面を離れた・不成立・終了済みなら止める
+      if ($("screen-group").classList.contains("hidden")) { stopGroupPoll(); return; }
+      const g = currentGroup;
+      if (!g || g.status === "failed") { stopGroupPoll(); return; }
+      const endMs = g.endsAt ? Date.parse(g.endsAt) : null;
+      if (endMs && Date.now() >= endMs + 60000) { stopGroupPoll(); return; } // 終了1分後まで見たら停止
+      if (groupPollBusy) return; // 前の更新が終わっていなければスキップ
+      // 入力中（パーティ名など）は画面を作り直さない。作り直すとキーボードが閉じ、打ちかけの文字も消えてしまう
+      const act = document.activeElement;
+      if (act && act.tagName === "INPUT" && $("screen-group").contains(act)) return;
+      groupPollBusy = true;
+      try {
+        const slotId = currentGroupSlotId;
+        const myGroup = await api("getMyGroup", { lineUserId: profile.userId, slotId: slotId });
+        if (slotId !== currentGroupSlotId) return; // 更新中にタブが切り替わったら破棄
+        if (!myGroup.group) return;
+        if (myGroup.group.status === "failed") { await renderGroupDetail(slotId); return; } // 不成立に変化→全体を出し直す
+        // 画面を隠さず差し替え（チラつき防止）。表示/非表示は最後に applyGroupView がまとめて決める
+        currentGroup = myGroup.group;
+        renderGroup(myGroup.group);
+        await loadQuest(slotId);
+        renderActionBanner();
+      } catch (e) { /* 一時的な通信エラーは次の周期に任せる */ }
+      finally { groupPollBusy = false; }
+    }
+
+    // カウントダウン（1秒ごと）。お題解放・終了の境界を越えたら自動で再取得して表示を進める。
+    function startTick() { stopTick(); tickInterval = setInterval(tick, 1000); tick(); }
+    function stopTick() { if (tickInterval) { clearInterval(tickInterval); tickInterval = null; } }
+    function tick() {
+      const el = $("growthTimer");
+      const gd = questData;
+      if (!gd || gd.status !== "started" || !gd.startedAt) { el.classList.add("hidden"); stopTick(); return; }
+      const now = Date.now();
+      const startMs = Date.parse(gd.startedAt);
+      const endMs = gd.endsAt ? Date.parse(gd.endsAt) : startMs + 100 * 60000; // 通常はサーバーの endsAt を使う
+      if (now >= endMs) {
+        el.textContent = "⏱ クエストは終了しました";
+        el.classList.remove("hidden");
+        renderActionBanner(); // クエスト中→終了後にバナーを切り替え
+        stopTick();
+        return;
+      }
+      el.textContent = "⏱ 残り " + fmtMMSS(endMs - now);
+      el.classList.remove("hidden");
+    }
+
+    // ===== 予約画面（複数予約対応）=====
+    async function openReserve() {
+      setStatus("homeStatus", "", "");
+      await renderReserve();
+      showScreen("screen-reserve");
+    }
+    let myResvList = []; // 自分の予約（新規予約時の時間重複チェックに使う）
+    let slotsCache = []; // 枠の一覧（締切を過ぎたか＝キャンセル可否の判定に使う）
+    let paymentsInfo = null; // 料金の案内（サーバーが決めた金額。enabled が false の間は金額を出さない）
+    const yen = (n) => Number(n || 0).toLocaleString("ja-JP") + "円";
+
+    // ===== ⑭ 18歳未満：お子さまを招待（保護者）=====
+    let miTarget = null, miNewUrl = "", miNewCode = "";
+    function openMinorInvite(r) {
+      miTarget = r;
+      $("myReserveBox").classList.add("hidden");
+      $("minorInviteBox").classList.remove("hidden");
+      $("miSlot").textContent = formatSlot(r.date, r.time);
+      $("miConsent").checked = false;
+      $("miNew").classList.add("hidden");
+      setStatus("homeStatus", "", "");
+      renderMinorInviteList(r.minorInvites || [], r.minorInviteMax || 2);
+    }
+    function renderMinorInviteList(list, max) {
+      const box = $("miList");
+      box.innerHTML = list.length ? '<div class="pd-sub" style="margin-bottom:6px">作った招待（' + list.length + "/" + max + '）</div>' : "";
+      list.forEach((x) => {
+        const row = document.createElement("div");
+        row.className = "mi-row";
+        row.innerHTML = '<span>' + (x.status === "used"
+          ? "✅ 参加済み：" + esc(x.childNickname || "お子さま")
+          : "⏳ 未使用　<b>" + esc(x.code) + "</b>") + '</span>';
+        if (x.status === "active") {
+          const b = document.createElement("button");
+          b.textContent = "取り消す";
+          b.onclick = async () => {
+            b.disabled = true;
+            const rr = await api("revokeMinorInvite", { lineUserId: profile.userId, code: x.code });
+            if (rr.ok) await refreshMinorInvite(); else { b.disabled = false; setStatus("homeStatus", rr.error || "取り消せませんでした", "ng"); }
+          };
+          row.appendChild(b);
+        }
+        box.appendChild(row);
+      });
+      $("miCreate").classList.toggle("hidden", list.length >= max);
+    }
+    async function refreshMinorInvite() {
+      const mine = await api("getMyReservation", { lineUserId: profile.userId });
+      const r = (mine.reservations || []).find((x) => x.slotId === miTarget.slotId);
+      if (r) { miTarget = r; renderMinorInviteList(r.minorInvites || [], r.minorInviteMax || 2); }
+    }
+    $("miBackBtn").addEventListener("click", renderReserve);
+    $("miCreateBtn").addEventListener("click", async () => {
+      if (!$("miConsent").checked) { setStatus("homeStatus", "保護者としての同意にチェックしてください", "ng"); return; }
+      $("miCreateBtn").disabled = true;
+      const r = await api("createMinorInvite", { lineUserId: profile.userId, slotId: miTarget.slotId, consent: "1" });
+      $("miCreateBtn").disabled = false;
+      if (!r.ok) { setStatus("homeStatus", r.error || "招待を作れませんでした", "ng"); return; }
+      miNewUrl = r.url; miNewCode = r.code;
+      $("miCode").textContent = r.code;
+      $("miNew").classList.remove("hidden");
+      $("miConsent").checked = false;
+      setStatus("homeStatus", "✅ 招待を作りました。お子さまに送ってください", "ok");
+      await refreshMinorInvite();
+    });
+    function inviteMessage() {
+      return "【100 Quest】" + (currentUser.nickname || "") + "さんから参加の招待です👧\n" +
+        formatSlot(miTarget.date, miTarget.time) + "\n\n" +
+        "下のリンクを、あなたのスマホのLINEで開いてください（参加費は無料です）。\n" + miNewUrl + "\n\n" +
+        "招待コード：" + miNewCode;
+    }
+    $("miShareBtn").addEventListener("click", async () => {
+      // LINEの「友だちに送る」（shareTargetPicker）。使えない環境ではコピーに切り替える
+      try {
+        if (liff.isApiAvailable && liff.isApiAvailable("shareTargetPicker")) {
+          const res = await liff.shareTargetPicker([{ type: "text", text: inviteMessage() }]);
+          if (res) setStatus("homeStatus", "✅ 招待を送りました", "ok");
+          return;
+        }
+      } catch (e) { /* 失敗したらコピーへ */ }
+      await copyInvite();
+    });
+    async function copyInvite() {
+      try { await navigator.clipboard.writeText(inviteMessage()); setStatus("homeStatus", "✅ 招待の文面をコピーしました。LINEでお子さまに送ってください", "ok"); }
+      catch (e) { setStatus("homeStatus", "招待リンク：" + miNewUrl, ""); }
+    }
+    $("miCopyBtn").addEventListener("click", copyInvite);
+
+    // ===== ⑭ 18歳未満：招待を受ける（お子さま）=====
+    let iaCode = "";
+    async function openInviteAccept(code) {
+      await openReserve();
+      $("myReserveBox").classList.add("hidden");
+      $("inviteAcceptBox").classList.remove("hidden");
+      $("iaDetail").classList.add("hidden");
+      $("iaCodeInputWrap").classList.toggle("hidden", !!code);
+      $("iaCodeInput").value = "";
+      if (code) await lookupInvite(code);
+    }
+    async function lookupInvite(code) {
+      const r = await api("getMinorInvite", { lineUserId: profile.userId, code: code });
+      if (!r.ok) { setStatus("homeStatus", r.error || "招待が見つかりません", "ng"); $("iaCodeInputWrap").classList.remove("hidden"); return; }
+      const inv = r.invite;
+      iaCode = inv.code;
+      $("iaFrom").textContent = (inv.guardianNickname || "保護者の方") + "さん（保護者）からの招待";
+      $("iaSlot").textContent = inv.date ? formatSlot(inv.date, inv.time) : "";
+      $("iaDetail").classList.remove("hidden");
+      $("iaCodeInputWrap").classList.add("hidden");
+      const btn = $("iaAcceptBtn");
+      btn.disabled = false; btn.textContent = "この招待で参加する";
+      let msg = "";
+      if (inv.isGuardian) msg = "保護者ご本人は使えません。お子さまのスマホで開いてください";
+      else if (inv.mine) msg = "この招待で参加済みです";
+      else if (inv.status !== "active") msg = inv.status === "used" ? "この招待はすでに使われています" : "この招待は取り消されています";
+      else if (inv.closed) msg = "予約締切を過ぎたため参加できません";
+      else if (inv.adultsOnly) msg = "この枠はお子さまは参加できない枠のため、招待では参加できません";
+      if (msg) { btn.disabled = true; setStatus("homeStatus", msg, "ng"); } else setStatus("homeStatus", "", "");
+    }
+    $("iaLookupBtn").addEventListener("click", () => {
+      const v = toHalfWidth($("iaCodeInput").value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (v.length !== 8) { setStatus("homeStatus", "招待コードは8文字です（例：ABCD-EFGH）", "ng"); return; }
+      lookupInvite(v);
+    });
+    $("iaAcceptBtn").addEventListener("click", async () => {
+      $("iaAcceptBtn").disabled = true;
+      const r = await api("redeemMinorInvite", { lineUserId: profile.userId, code: iaCode });
+      if (!r.ok) { $("iaAcceptBtn").disabled = false; setStatus("homeStatus", r.error || "参加できませんでした", "ng"); return; }
+      await renderReserve();
+      setStatus("homeStatus", "✅ 参加が決まりました（" + formatSlot(r.date, r.time) + "・無料）。当日は保護者の方と一緒に受付してください", "ok");
+    });
+    $("iaBackBtn").addEventListener("click", renderReserve);
+    $("inviteCodeLink").addEventListener("click", () => openInviteAccept(null));
+
+    // ===== ⑦決済：お支払い =====
+    // 席を押さえていられる残り時間（サーバーが返す holdUntil から計算）
+    function holdLeftText(holdUntil) {
+      if (!holdUntil) return "";
+      const ms = new Date(holdUntil).getTime() - Date.now();
+      if (!Number.isFinite(ms)) return "";
+      if (ms <= 0) return "まもなく解放されます";
+      return "あと" + Math.max(1, Math.round(ms / 60000)) + "分";
+    }
+    let payTarget = null;
+    let payCouponId = "";      // 選んだクーポン（"" は使わない）
+    let payCouponList = [];
+    // クーポンを当てたあとの金額（表示用。実際の金額はサーバーが決める）。50円未満の残りは0円
+    function dueWith(base, c) {
+      if (!c) return base;
+      if (c.type === "free") return 0;
+      const d = Math.max(0, base - (Number(c.amount) || 0));
+      return d > 0 && d < 50 ? 0 : d;
+    }
+    function renderPayAmount() {
+      const base = payTarget.amount;
+      const c = payCouponList.find((x) => x.couponId === payCouponId) || null;
+      const due = dueWith(base, c);
+      $("payAmount").innerHTML = (due !== base ? '<span class="pay-base">' + esc(yen(base)) + '</span>' : "") + esc(yen(due));
+      $("payBtn").textContent = due === 0 ? "クーポンで予約を確定する" : "お支払いに進む";
+      // 0円なら支払い手段や明細の案内はいらない
+      document.querySelector("#payBox .pay-fine").classList.toggle("hidden", due === 0);
+      document.querySelectorAll("#payCoupons label").forEach((l) =>
+        l.classList.toggle("sel", l.dataset.id === payCouponId));
+    }
+    async function openPay(r) {
+      payTarget = r;
+      payCouponId = r.couponId || "";   // 前に選んだクーポンがあれば引き継ぐ
+      payCouponList = [];
+      $("myReserveBox").classList.add("hidden");
+      $("chooseBox").classList.add("hidden");
+      $("partyDoneBox").classList.add("hidden");
+      $("payBox").classList.remove("hidden");
+      $("paySlot").textContent = formatSlot(r.date, r.time);
+      $("payCoupons").classList.add("hidden");
+      const left = holdLeftText(r.holdUntil);
+      $("payHold").textContent = left
+        ? "席を押さえています（" + left + "）。時間を過ぎると席は他の方に回ります。"
+        : "時間内にお支払いがないと、席は他の方に回ります。";
+      $("payBtn").disabled = false;
+      renderPayAmount();
+      setStatus("homeStatus", "", "");
+      // 使えるクーポン（未使用のもの＋この予約で押さえているもの）
+      const mc = await api("getMyCoupons", { lineUserId: profile.userId });
+      payCouponList = (mc.coupons || []).filter((c) => c.status === "active" || c.heldSlotId === r.slotId);
+      if (!payCouponList.some((c) => c.couponId === payCouponId)) payCouponId = "";
+      const box = $("payCoupons");
+      if (payCouponList.length) {
+        const opt = (id, text) => '<label data-id="' + esc(id) + '"><input type="radio" name="payCoupon" value="' + esc(id) + '"'
+          + (id === payCouponId ? " checked" : "") + '><span>' + text + '</span></label>';
+        box.innerHTML = '<div class="pc-title">🎟 クーポンを使う</div>'
+          + opt("", "使わない")
+          + payCouponList.map((c) => opt(c.couponId,
+              (c.type === "free" ? "参加無料クーポン" : esc(yen(c.amount)) + "引きクーポン")
+              + (c.reason ? '<br><span style="color:var(--sub);font-size:12px">' + esc(c.reason) + '</span>' : ""))).join("");
+        box.classList.remove("hidden");
+        box.querySelectorAll("input").forEach((i) => i.addEventListener("change", () => { payCouponId = i.value; renderPayAmount(); }));
+      }
+      renderPayAmount();
+    }
+    $("payLaterBtn").addEventListener("click", renderReserve);
+    $("payBtn").addEventListener("click", async () => {
+      if (!payTarget) return;
+      $("payBtn").disabled = true;
+      $("payBtn").textContent = "支払い画面を開いています…";
+      const r = await api("createCheckout", { lineUserId: profile.userId, slotId: payTarget.slotId, couponId: payCouponId });
+      if (r.ok && r.free) {
+        // クーポンで0円になった＝支払い画面を通さずに確定
+        await renderReserve();
+        setStatus("homeStatus", "✅ クーポンを使って予約が確定しました", "ok");
+        return;
+      }
+      if (r.ok && r.url) {
+        // Stripeの支払い画面へ。支払い後は ?mode=paid でこのアプリに戻ってくる
+        location.href = r.url;
+        return;
+      }
+      if (r.ok && r.paid) {
+        setStatus("homeStatus", "✅ お支払いは完了しています", "ok");
+        await renderReserve();
+        return;
+      }
+      $("payBtn").disabled = false;
+      $("payBtn").textContent = "お支払いに進む";
+      setStatus("homeStatus", r.error || "支払い画面を開けませんでした", "ng");
+    });
+
+    // 支払い画面から戻ってきたとき（?mode=paid&slot=…）。
+    // 予約を確定させるのはStripeからの知らせなので、少し待って確認する。
+    async function afterPayment(slotId, canceled) {
+      await openReserve();
+      if (canceled) {
+        setStatus("homeStatus", "お支払いを中断しました。席は時間まで押さえています", "");
+        return;
+      }
+      setStatus("homeStatus", "お支払いを確認しています…", "");
+      for (let i = 0; i < 10; i++) {
+        const mine = await api("getMyReservation", { lineUserId: profile.userId });
+        const r = (mine.reservations || []).find((x) => x.slotId === slotId);
+        if (r && r.status !== "pending") {
+          await renderReserve();
+          setStatus("homeStatus", "✅ お支払いが完了し、予約が確定しました", "ok");
+          return;
+        }
+        if (!r) {   // 席の時間切れなどで予約が無くなっていた場合
+          await renderReserve();
+          setStatus("homeStatus", "予約が見つかりません。お支払いが済んでいる場合は運営にご連絡ください", "ng");
+          return;
+        }
+        await new Promise((res) => setTimeout(res, 2000));
+      }
+      await renderReserve();
+      setStatus("homeStatus", "お支払いの確認に時間がかかっています。少し待ってから開き直してください", "");
+    }
+
+    // スロット時間帯 "13:00〜15:00" を分に変換（バックエンドと同じルール。終端不明は開始+100分）
+    function timeRangeOf(timeStr) {
+      const ms = (timeStr || "").match(/(\d{1,2}):(\d{2})/g);
+      if (!ms || !ms.length) return null;
+      const toMin = (s) => { const p = s.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+      const start = toMin(ms[0]);
+      return { start: start, end: ms.length >= 2 ? toMin(ms[1]) : start + 100 };
+    }
+    // 既存予約と重複・連続する枠か（同じ日付のみ判定）
+    function conflictsWithMine(s) {
+      const nr = timeRangeOf(s.time);
+      if (!nr) return false;
+      return myResvList.some((r) => {
+        if (r.date !== s.date || r.slotId === s.slotId) return false;
+        const er = timeRangeOf(r.time);
+        return er && nr.start <= er.end && nr.end >= er.start;
+      });
+    }
+
+    // 予約一覧を表示（選択UIは隠す）
+    async function renderReserve() {
+      $("chooseBox").classList.add("hidden");
+      $("partyDoneBox").classList.add("hidden");
+      $("payBox").classList.add("hidden");
+      $("minorInviteBox").classList.add("hidden");
+      $("inviteAcceptBox").classList.add("hidden");
+      $("myReserveBox").classList.remove("hidden");
+      const [mine, slotsRes] = await Promise.all([
+        api("getMyReservation", { lineUserId: profile.userId }),
+        api("getSlots")
+      ]);
+      slotsCache = slotsRes.slots || [];  // 締切を過ぎたかの判定に使う
+      paymentsInfo = slotsRes.payments || paymentsInfo;
+      const resvs = mine.reservations || [];
+      myResvList = resvs;
+      const list = $("reserveList");
+      list.innerHTML = "";
+      if (!resvs.length) {
+        list.innerHTML = '<div class="placeholder">まだ予約がありません</div>';
+        return;
+      }
+      resvs.forEach((r) => {
+        const div = document.createElement("div");
+        div.className = "resv-item";
+        // パーティ登録していれば、コードと今そろっているメンバーを出す
+        let pHtml = "";
+        if (r.party) {
+          const names = (r.party.members || []).map((m) => esc(m.nickname) + (m.me ? "（あなた）" : "")).join("・");
+          pHtml = '<div class="resv-party">👑 パーティ <span class="rp-code">' + esc(r.party.code) + '</span>　'
+            + r.party.size + '/' + r.party.max + '人<br>' + names
+            + (r.party.size < 3 ? '<br>※当日ほかの参加者と合流します' : '') + '</div>';
+        }
+        // 18歳未満の予約
+        let mHtml = "";
+        if (r.minor === "borrowed") mHtml = '<div class="resv-minor">👧 お子さまが参加：' + esc(r.participantNickname || r.nickname || "") + '（無料・保護者は付き添い）</div>';
+        else if (r.minor === "invited") mHtml = '<div class="resv-minor">👧 18歳未満（保護者：' + esc(r.guardianNickname || "") + 'さん）・無料</div>';
+        div.innerHTML = '<span class="rtime">' + formatSlot(r.date, r.time) + '</span>' + pHtml + mHtml;
+        // 締切を過ぎるとキャンセルできない（締切時点でパーティが組まれるため）
+        const slot = (slotsCache || []).find((x) => x.slotId === r.slotId);
+        const closed = slot ? slot.closed : false;
+        const pending = r.status === "pending";   // 支払い待ち（席だけ押さえている状態）
+        const c = document.createElement("button");
+        c.className = "rcancel";
+        if (pending) {
+          // 支払い前なので、締切後でも取りやめられる
+          c.textContent = "やめる";
+          c.onclick = () => cancelResv(r.slotId, formatSlot(r.date, r.time), true);
+        } else if (closed) {
+          c.textContent = "締切後";
+          c.disabled = true;
+          c.title = "予約締切を過ぎたためキャンセルできません";
+        } else {
+          c.textContent = "キャンセル";
+          const kids = (r.minorInvites || []).filter((x) => x.status === "used").length;
+          c.onclick = () => cancelResv(r.slotId, formatSlot(r.date, r.time), false, r.paymentSessionId ? (r.paidAmount || r.amount) : 0, kids);
+        }
+        div.appendChild(c);
+        // 保護者として：お子さまを招待（支払い済み・締切前・18歳未満の予約でないとき）
+        if (!pending && !closed && !r.minor && slot && slot.adultsOnly) {
+          const n = document.createElement("div");
+          n.className = "resv-kids-note";
+          n.textContent = "この枠はお子さまは参加できません";
+          div.appendChild(n);
+        }
+        if (!pending && !closed && !r.minor && !(slot && slot.adultsOnly)) {
+          const box = document.createElement("div");
+          box.className = "resv-invite";
+          const inv = r.minorInvites || [];
+          const used = inv.filter((x) => x.status === "used");
+          const b = document.createElement("button");
+          b.textContent = "👧 お子さまを招待" + (inv.length ? "（" + inv.length + "/" + (r.minorInviteMax || 2) + "）" : "");
+          b.onclick = () => openMinorInvite(r);
+          box.appendChild(b);
+          if (used.length) {
+            const n = document.createElement("div");
+            n.className = "resv-minor";
+            n.textContent = "👧 一緒に参加：" + used.map((x) => x.childNickname || "お子さま").join("・");
+            box.appendChild(n);
+          }
+          div.appendChild(box);
+        }
+        if (pending) {
+          const box = document.createElement("div");
+          box.className = "resv-pay";
+          const left = holdLeftText(r.holdUntil);
+          box.innerHTML = '<span class="rp-wait">⏳ お支払い待ち' + (left ? "（" + left + "）" : "") + '</span>';
+          const go = document.createElement("button");
+          go.className = "rp-go";
+          go.textContent = "お支払いに進む";
+          go.onclick = () => openPay(r);
+          box.appendChild(go);
+          div.appendChild(box);
+        }
+        list.appendChild(div);
+      });
+    }
+    // 危険操作の2段階確認モーダル（対象を明記・赤ボタン・2回タップで実行）
+    function dangerConfirm({ title, body, target, confirmText }) {
+      return new Promise((resolve) => {
+        $("ccTitle").textContent = title || "確認";
+        $("ccBody").textContent = body || "";
+        $("ccTarget").textContent = target || "";
+        $("ccTarget").style.display = target ? "block" : "none";
+        $("ccOk").textContent = confirmText || "削除する";
+        $("ccStep").textContent = "";
+        let armed = false;
+        const overlay = $("confirmOverlay");
+        overlay.classList.remove("hidden");
+        const cleanup = (result) => {
+          overlay.classList.add("hidden");
+          $("ccOk").onclick = null; $("ccCancel").onclick = null;
+          resolve(result);
+        };
+        $("ccCancel").onclick = () => cleanup(false);
+        $("ccOk").onclick = () => {
+          if (!armed) {
+            armed = true;
+            $("ccStep").textContent = "⚠️ 取り消せません。もう一度押すと実行します。";
+            $("ccOk").textContent = "本当に" + (confirmText || "削除する");
+            return;
+          }
+          cleanup(true);
+        };
+      });
+    }
+    async function cancelResv(slotId, label, pending, paidAmount, kids) {
+      const kidNote = kids ? "　※招待したお子さま（" + kids + "人）の予約も一緒に取り消されます。" : "";
+      const ok = await dangerConfirm({
+        title: pending ? "予約をやめる" : "予約をキャンセル",
+        body: (pending
+          ? "お支払い前のこの予約をやめます。押さえている席は解放されます。よろしいですか？"
+          : paidAmount
+            ? "次の予約をキャンセルします。お支払いの" + yen(paidAmount) + "は全額返金します。よろしいですか？"
+            : "次の予約をキャンセルします。よろしいですか？") + kidNote,
+        target: label || "この予約",
+        confirmText: pending ? "やめる" : "キャンセルする"
+      });
+      if (!ok) return;
+      const r = await api("cancelReservation", { lineUserId: profile.userId, slotId: slotId });
+      if (r.ok) {
+        const msg = (r.refunded
+          ? "キャンセルしました。" + yen(r.refundAmount) + "を返金します（反映まで数日かかることがあります）"
+          : paidAmount
+            ? "キャンセルしました。返金の手続きを進めています（完了まで少しお時間をください）"
+            : "キャンセルしました") + (r.couponReturned ? "。使ったクーポンはお返ししました" : "")
+          + (r.childrenCanceled ? "。お子さまの予約も取り消しました" : "");
+        await renderReserve();
+        setStatus("homeStatus", msg, "");
+      } else {
+        await renderReserve();
+        setStatus("homeStatus", "キャンセルできませんでした：" + (r.error || ""), "ng");
+      }
+    }
+    // 「＋別の時間帯を予約する」→ 日時選択を表示
+    $("addReserveBtn").addEventListener("click", async () => {
+      $("myReserveBox").classList.add("hidden");
+      $("chooseBox").classList.remove("hidden");
+      // 「だれと参加する？」は毎回ソロに戻す（前回の選択が残っていると事故のもと）
+      partyMode = "solo"; $("joinCode").value = "";
+      $("minorBorrowed").checked = false; $("participantNickname").value = ""; $("minorBox").classList.add("hidden");
+      document.querySelectorAll("#partyMode .pm-opt").forEach((x) =>
+        x.classList.toggle("active", x.dataset.mode === "solo"));
+      $("joinCodeBox").classList.add("hidden");
+      $("partyNote").classList.add("hidden");
+      setStatus("homeStatus", "", "");
+      const slotsRes = await api("getSlots");
+      paymentsInfo = slotsRes.payments || paymentsInfo;
+      renderSlots(slotsRes.slots || []);
+    });
+    $("chooseBackBtn").addEventListener("click", renderReserve);
+
+    // ===== クーポン画面 =====
+    async function openCoupon() {
+      setStatus("couponStatus", "", "");
+      const myCoupons = await api("getMyCoupons", { lineUserId: profile.userId });
+      renderCoupons(myCoupons.coupons || []);
+      showScreen("screen-coupon");
+    }
+
+    // ===== ⑩ クエスト（チカラ＋姫の救出）=====
+    let questData = null;
+    // すでに演出を見せた姫（同じ姫で何度も演出しないため。端末ごとに覚える）
+    let shownRescues = new Set();
+    let rescueQueue = [];   // 演出の待ち行列（複数同時救出に対応）
+    let rescuePlaying = false;
+
+    // プロフィールの「いちばん伸ばしたいチカラ」の表示（5つのチカラ以外＝旧プロフィールの値は出さない）
+    const powerLabel = (k) => (POWER_META[k] ? POWER_META[k].emoji + POWER_META[k].label : "");
+    const POWER_META = {
+      save:    { emoji:"💰", label:"貯める" },
+      earn:    { emoji:"💪", label:"稼ぐ" },
+      grow:    { emoji:"📈", label:"増やす" },
+      protect: { emoji:"🛡", label:"守る" },
+      use:     { emoji:"🎁", label:"使う" }
+    };
+    const POWER_ORDER = ["save","earn","grow","protect","use"];
+    const stars = (n) => "⭐".repeat(Math.max(1, Math.min(3, n || 1)));
+
+    async function loadQuest(slotId) {
+      const r = await api("getQuestState", { lineUserId: profile.userId, slotId: slotId });
+      questData = r.quest || null; // 枠切替時に別枠の古いデータを残さない
+      if (r.quest) { renderQuest(r.quest); $("questBox").classList.remove("hidden"); }
+      else { $("questBox").classList.add("hidden"); stopTick(); }
+      applyGroupView();
+    }
+
+    // ----- ミッション／パーティ の表示切替 -----
+    // チュートリアルが終わるまでは両方まとめて表示（誰が来ているかを見たい時間帯なので）。
+    // 本編に入ったらタブで分ける＝メンバー一覧が常に画面を占領しないように。
+    let groupView = "quest";
+    function applyGroupView() {
+      const split = !!(currentGroup && questData && questData.phase === "main");
+      $("viewTabs").classList.toggle("hidden", !split);
+      if (split) {
+        $("questBox").classList.toggle("hidden", groupView !== "quest");
+        $("groupBox").classList.toggle("hidden", groupView !== "party");
+        renderViewTabs();
+      } else {
+        $("groupBox").classList.toggle("hidden", !currentGroup);
+        $("questBox").classList.toggle("hidden", !questData);
+      }
+    }
+    function renderViewTabs() {
+      const left = (questData.missions || []).filter((m) => !m.cleared).length;
+      const tabs = $("viewTabs");
+      tabs.innerHTML =
+        '<button class="vtab' + (groupView === "quest" ? " active" : "") + '" data-view="quest">' +
+          '🏰 ミッション<small>' + (left ? "残り " + left + "件" : "すべてクリア！") + '</small></button>' +
+        '<button class="vtab' + (groupView === "party" ? " active" : "") + '" data-view="party">' +
+          '👥 パーティ<small>' + esc(questData.partyName || "") + '・' + questData.memberTotal + '人</small></button>';
+    }
+    $("viewTabs").addEventListener("click", (e) => {
+      const b = e.target.closest(".vtab"); if (!b) return;
+      groupView = b.dataset.view;
+      applyGroupView();
+      $("viewTabs").scrollIntoView({ block: "start" });
+    });
+
+    function renderQuest(q) {
+      // パーティ名と人数
+      // パーティ名はサーバー側で決まる（既定は「パーティ1」、第3段階で自分たちが命名）
+      $("qParty").innerHTML = esc(q.partyName || "あなたのパーティ") +
+        '<small>' + q.memberTotal + '人で挑戦中</small>';
+
+      // メインゲージ：次の姫までを満たす割合（全員救出後は満タン）
+      const goal = q.next ? q.next.need : q.totalPower;
+      const pct = goal > 0 ? Math.min(100, Math.round(q.totalPower / goal * 100)) : 100;
+      $("qGauge").style.width = pct + "%";
+      $("qGaugeNum").textContent = q.totalPower + (q.next ? " / " + q.next.need : "");
+
+      // 「あと◯で△姫を救出！」＝一番目立たせる
+      const nx = $("qNext");
+      if (!q.next) {
+        nx.className = "q-next done";
+        nx.innerHTML = '<div class="qn-main">🎉 4人の姫を全員救出！</div>'
+          + '<div class="qn-sub">集めたチカラ ' + q.totalPower + '</div>';
+      } else if (q.next.remaining > 0) {
+        nx.className = "q-next";
+        nx.innerHTML = '<div class="qn-main">あと <span class="qn-num">' + q.next.remaining + '</span> で '
+          + q.next.emoji + esc(q.next.name) + 'を救出！</div>'
+          + (q.next.requireAllPowers
+              ? '<div class="qn-sub">※5種類すべてのチカラが1つ以上必要です</div>' : '');
+      } else if (q.next.requireAllPowers && q.next.missingPowers.length) {
+        // チカラは足りているが種類が足りない（終盤の戦略ポイント）
+        nx.className = "q-next";
+        const need = q.next.missingPowers.map((k) => POWER_META[k].emoji + POWER_META[k].label).join("・");
+        nx.innerHTML = '<div class="qn-main">' + q.next.emoji + esc(q.next.name) + 'まであと少し！</div>'
+          + '<div class="qn-sub">' + need + ' のミッションをクリアしよう</div>';
+      } else {
+        nx.className = "q-next done";
+        nx.innerHTML = '<div class="qn-main">' + q.next.emoji + esc(q.next.name) + 'を救出できる！</div>';
+      }
+
+      // 救出した姫（進むほど賑やかになる）
+      $("qPrincesses").innerHTML = (q.princesses || []).map((p) =>
+        '<div class="q-p' + (p.rescued ? ' got' : '') + '">'
+        + '<div class="qp-face">' + p.emoji + '</div>'
+        + '<div class="qp-name">' + (p.rescued ? esc(p.name) : "？？？") + '</div></div>'
+      ).join("");
+
+      // 内訳は小さく1行
+      $("qBreakdown").innerHTML = "内訳 " + POWER_ORDER.map((k) => {
+        const v = (q.powers || {})[k] || 0;
+        return '<span class="' + (v ? "" : "zero") + '">' + POWER_META[k].emoji + v + '</span>';
+      }).join("");
+
+      // チュートリアル中は姫の声と進み具合を出す
+      renderTutorial(q);
+
+      // ミッション（タブで絞り込み。チュートリアル中は種類が少ないのでタブは出さない）
+      const tut = (q.phase === "tutorial");
+      $("missionTabs").classList.toggle("hidden", tut);
+      $("missionsTitle").textContent = tut
+        ? "チュートリアル（パーティ全員のチェックでクリア）"
+        : "ミッション（パーティ全員のチェックでクリア）";
+      if (tut) missionTab = "all";
+      else renderMissionTabs(q);
+      renderMissionList(q);
+
+      $("shareBtn").classList.toggle("hidden", !q.completed);
+      startTick(); // 残り時間カウントダウン（未開始なら中で自動停止）
+      queueRescues(q); // 新しく救出された姫がいれば演出
+    }
+
+    // ----- チュートリアル（ペンペン姫の声＋進み具合）-----
+    function renderTutorial(q) {
+      const box = $("tutBox");
+      const t = q.tutorial || {};
+      if (q.phase !== "tutorial") { box.classList.add("hidden"); return; }
+      box.classList.remove("hidden");
+      $("tutVoice").textContent = t.voice || "";
+      const ms = q.missions || [];
+      // 行き先が出るまではロック中の移動を数に入れない（「3つ」と「0/4」が食い違わないように）
+      const target = t.destination ? ms : ms.filter((m) => !m.locked);
+      const done = target.filter((m) => m.cleared).length;
+      $("tutStep").textContent = t.destination
+        ? "🚶 " + t.destination + "へ向かおう（" + done + "/" + target.length + "）"
+        : "まずはこの" + target.length + "つから（" + done + "/" + target.length + "）";
+    }
+
+    // ----- ミッションのタブ（すべて／チカラ5種）-----
+    let missionTab = "all"; // 既定は「すべて」＝タブを理解しなくても遊べる
+    function renderMissionTabs(q) {
+      const tabs = $("missionTabs");
+      const ms = q.missions || [];
+      const defs = [{ key:"all", label:"すべて" }].concat(
+        POWER_ORDER.map((k) => ({ key:k, label:POWER_META[k].emoji + POWER_META[k].label })));
+      tabs.innerHTML = "";
+      defs.forEach((d) => {
+        const items = d.key === "all" ? ms : ms.filter((m) => m.power === d.key);
+        if (d.key !== "all" && !items.length) return; // その種類のミッションが無ければタブも出さない
+        const left = items.filter((m) => !m.cleared).length; // 残り数（選ぶ判断材料）
+        const b = document.createElement("button");
+        b.className = "m-tab" + (missionTab === d.key ? " active" : "");
+        b.innerHTML = d.label + '<span class="mt-n">' + left + '</span>';
+        b.onclick = () => { missionTab = d.key; renderMissionTabs(q); renderMissionList(q); };
+        tabs.appendChild(b);
+      });
+    }
+
+    // クリア済みと分かったミッションのID。次の描画で「今クリアした1件」を光らせるために使う
+    let clearedSeen = null;
+    function renderMissionList(q) {
+      const list = $("missionList");
+      list.innerHTML = "";
+      const all = q.missions || [];
+      // 初回だけは既存のクリア済みを「今クリアした」扱いにしない
+      const first = (clearedSeen === null);
+      if (first) clearedSeen = new Set();
+      const justDone = new Set();
+      all.forEach((m) => {
+        if (m.cleared && !clearedSeen.has(m.id)) { clearedSeen.add(m.id); if (!first) justDone.add(m.id); }
+        if (!m.cleared) clearedSeen.delete(m.id);
+      });
+
+      // クリア済みは下へまとめる（未クリアの並びは元のまま＝sortは安定ソート）
+      const shown = all.map((m) => ({ m }))
+        .filter((x) => missionTab === "all" || x.m.power === missionTab)
+        .sort((a, b) => (a.m.cleared ? 1 : 0) - (b.m.cleared ? 1 : 0));
+      if (!shown.length) { list.innerHTML = '<div class="m-empty">このチカラのミッションはありません</div>'; return; }
+
+      const doneCount = shown.filter((x) => x.m.cleared).length;
+      let dividerDone = false;
+      shown.forEach(({ m }) => {
+        // 未クリアとクリア済みの境目に区切りを入れる（両方あるときだけ）
+        if (m.cleared && !dividerDone) {
+          dividerDone = true;
+          if (doneCount < shown.length) {
+            const dv = document.createElement("div");
+            dv.className = "m-divider";
+            dv.textContent = "クリア済み " + doneCount + "件";
+            list.appendChild(dv);
+          }
+        }
+        const row = document.createElement("div");
+        row.className = "mission-item"
+          + (m.locked ? " locked" : (m.cleared ? " done" : (m.mine ? " mine" : "")))
+          + (justDone.has(m.id) ? " just-done" : "");
+        const pm = POWER_META[m.power] || { emoji:"", label:"" };
+        row.innerHTML =
+          '<span class="box">' + (m.cleared ? "✓" : (m.mine ? "・" : (m.locked ? "🔒" : ""))) + '</span>'
+          + '<span class="m-body"><span class="m-name">' + pm.emoji + " " + esc(m.name) + '</span>'
+          + '<span class="m-meta">' + stars(m.stars) + " " + pm.label + "＋" + m.stars
+          + (m.locked ? "　🐧 3つ終えると行き先が分かる"
+             : (m.cleared ? "　✅クリア！" : "　" + m.checkedCount + "/" + m.memberCount + "人がチェック"))
+          + '</span></span>';
+
+        // 「パーティの名前を決めよう」には名前の入力欄、「スタート宣言」には文例を添える
+        if (m.kind === "partyName" && !m.cleared) row.appendChild(buildPartyNameEditor(q));
+        if (m.kind === "declare" && !m.cleared) {
+          const d = document.createElement("div");
+          d.className = "m-declare"; d.textContent = (q.tutorial || {}).declare || "";
+          row.appendChild(d);
+        }
+        if (m.kind === "partyName" || m.kind === "declare") row.style.flexWrap = "wrap";
+
+        // クリア済み・ロック中は押せない（取り消すとチカラが減り、救出済みの姫が戻ってしまうため）
+        if (!m.cleared && !m.locked) {
+          row.addEventListener("click", (e) => {
+            if (e.target.closest(".m-name-edit")) return; // 名前の入力欄はチェックに反応させない
+            toggleQuestMission(m.id, !m.mine, row);
+          });
+        }
+        list.appendChild(row);
+      });
+    }
+
+    // パーティ名の入力欄（チュートリアル1つ目の行の中に出る）
+    // 打ちかけのパーティ名（10秒ごとの自動更新で入力欄が作り直されても消えないように覚えておく）
+    let partyNameDraft = null;   // { slotId, value }
+    function buildPartyNameEditor(q) {
+      const wrap = document.createElement("div");
+      wrap.className = "m-name-edit";
+      const max = (q.tutorial || {}).nameMax || 20;
+      wrap.innerHTML = '<input type="text" maxlength="' + max + '" placeholder="パーティ名（' + max + '文字まで）" />'
+        + '<button type="button">決定</button>';
+      const input = wrap.querySelector("input");
+      const btn = wrap.querySelector("button");
+      const draft = partyNameDraft && partyNameDraft.slotId === currentGroupSlotId ? partyNameDraft.value : null;
+      input.value = draft !== null ? draft : (q.named ? q.partyName : "");
+      input.addEventListener("input", () => { partyNameDraft = { slotId: currentGroupSlotId, value: input.value }; });
+      btn.addEventListener("click", async () => {
+        const name = input.value.trim();
+        if (!name) { input.focus(); return; }
+        btn.disabled = true; btn.textContent = "…";
+        const r = await api("setPartyName", {
+          lineUserId: profile.userId, slotId: currentGroupSlotId, name: name });
+        if (r.ok && r.quest) { partyNameDraft = null; questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
+        else { btn.disabled = false; btn.textContent = "決定"; }
+      });
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); btn.click(); } });
+      return wrap;
+    }
+
+    async function toggleQuestMission(missionId, mine, rowEl) {
+      if (rowEl) rowEl.style.pointerEvents = "none";
+      const r = await api("toggleQuestMission", {
+        lineUserId: profile.userId, slotId: currentGroupSlotId, missionId: missionId, done: mine });
+      if (r.ok && r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
+      else if (rowEl) rowEl.style.pointerEvents = "";
+    }
+
+    // ----- 姫の救出演出 -----
+    // 端末ごとに「見せた姫」を覚えるので、パーティの誰もが1回ずつ演出を見られる
+    function rescueMemoryKey() { return "bocchi_rescued_" + (currentGroupSlotId || ""); }
+    function loadShownRescues() {
+      shownRescues = new Set();
+      try {
+        const raw = sessionStorage.getItem(rescueMemoryKey());
+        if (raw) JSON.parse(raw).forEach((id) => shownRescues.add(id));
+      } catch (e) {}
+    }
+    function saveShownRescues() {
+      try { sessionStorage.setItem(rescueMemoryKey(), JSON.stringify([...shownRescues])); } catch (e) {}
+    }
+    // 初回表示時は「すでに救出済み」を演出せず記録だけする（途中参加や再読込で連発しないように）
+    let rescueInitialized = false;
+    function queueRescues(q) {
+      const ids = q.rescued || [];
+      if (!rescueInitialized) {
+        rescueInitialized = true;
+        loadShownRescues();
+        // セッションに記録が無い＝この端末で初めて開いた → 既存分は演出せず既読にする
+        if (!shownRescues.size) { ids.forEach((id) => shownRescues.add(id)); saveShownRescues(); return; }
+      }
+      const fresh = ids.filter((id) => !shownRescues.has(id));
+      if (!fresh.length) return;
+      fresh.forEach((id) => {
+        const p = (q.princesses || []).find((x) => x.id === id);
+        if (p) rescueQueue.push(p);
+        shownRescues.add(id);
+      });
+      saveShownRescues();
+      playNextRescue();
+    }
+
+    function playNextRescue() {
+      if (rescuePlaying) return;
+      const p = rescueQueue.shift();
+      if (!p) return;
+      rescuePlaying = true;
+      $("rescueFace").textContent = p.emoji;
+      $("rescueTitle").textContent = p.name + "を救出した！";
+      $("rescueSay").textContent = p.rescue || "";
+      $("rescueOverlay").classList.remove("hidden");
+      spawnConfetti();
+    }
+    function closeRescue() {
+      $("rescueOverlay").classList.add("hidden");
+      $("rescueBurst").innerHTML = "";
+      rescuePlaying = false;
+      if (rescueQueue.length) setTimeout(playNextRescue, 300);
+    }
+    $("rescueNext").addEventListener("click", closeRescue);
+    // スキップは待ち行列ごと閉じる（4回とも長いと飽きるため）
+    $("rescueSkip").addEventListener("click", () => { rescueQueue = []; closeRescue(); });
+
+    // 紙吹雪（外部ライブラリを使わない軽量版。会場の電波が弱くても確実に動く）
+    function spawnConfetti() {
+      const box = $("rescueBurst");
+      box.innerHTML = "";
+      if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      const colors = ["#ffd77a","#ff9db0","#8fd6a6","#8fc7ff","#fff2b8"];
+      for (let i = 0; i < 40; i++) {
+        const c = document.createElement("i");
+        c.className = "confetti";
+        c.style.left = Math.random() * 100 + "%";
+        c.style.background = colors[i % colors.length];
+        c.style.animationDuration = (1.6 + Math.random() * 1.4) + "s";
+        c.style.animationDelay = (Math.random() * 0.5) + "s";
+        box.appendChild(c);
+      }
+    }
+
+    // シェアカード
+    $("shareBtn").addEventListener("click", () => openShareCard());
+    function fmtCardDate(d) {
+      const [y, m, day] = (d || "").split("-");
+      return y + "." + Number(m) + "." + Number(day);
+    }
+    // 救出した姫の絵文字を並べる（1人も救出できなくても表示は崩さない）
+    function rescuedEmojis(q) {
+      return (q.princesses || []).filter((p) => p.rescued).map((p) => p.emoji).join("") || "🏰";
+    }
+    function openShareCard() {
+      const q = questData; if (!q) return;
+      const n = (q.rescued || []).length;
+      $("scHead").textContent = q.partyName || "あなたのパーティ";
+      $("scAnimal").textContent = rescuedEmojis(q);
+      $("scGrown").textContent = n >= 4 ? "4人の姫を全員救出した！" : n + "人の姫を救出した！";
+      $("scPers").textContent = "";
+      $("scMembers").textContent = (q.memberNicknames || []).join(" / ");
+      $("scMission").textContent = "集めたチカラ " + q.totalPower + " ⭐️";
+      $("scDate").textContent = fmtCardDate(q.date);
+      $("shareOverlay").classList.remove("hidden");
+    }
+    $("closeShareBtn").addEventListener("click", () => $("shareOverlay").classList.add("hidden"));
+
+    // リベシティのつぶやきへ（文章はクリップボードにコピーして貼り付けやすく）
+    $("xShareBtn").addEventListener("click", async () => {
+      const q = questData; if (!q) return;
+      const text = rescuedEmojis(q) + " 100分クエストで" + (q.rescued || []).length +
+        "人の姫を救出！ チカラ" + q.totalPower + "を集めたよ✨ #100分クエスト";
+      let copied = false;
+      try { await navigator.clipboard.writeText(text); copied = true; } catch (e) {}
+      if (copied) alert("つぶやき文をコピーしました📋\nリベシティで貼り付けてつぶやいてね！");
+      const url = "https://libecity.com/tweet/all";
+      if (window.liff && liff.openWindow) liff.openWindow({ url: url, external: true });
+      else window.open(url, "_blank");
+    });
+
+    // 記念画像ダウンロード（canvasでPNG生成）
+    $("dlBtn").addEventListener("click", () => {
+      const q = questData; if (!q) return;
+      const n = (q.rescued || []).length;
+      const cv = $("dlCanvas"), ctx = cv.getContext("2d");
+      const W = cv.width, H = cv.height;
+      const grd = ctx.createLinearGradient(0, 0, 0, H);
+      grd.addColorStop(0, "#ffffff"); grd.addColorStop(1, "#e8f6ee");
+      ctx.fillStyle = grd; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = "#2f6d4f"; ctx.lineWidth = 8; ctx.strokeStyle = "#2f6d4f";
+      ctx.strokeRect(16, 16, W - 32, H - 32);
+      ctx.textAlign = "center";
+      ctx.font = "bold 34px sans-serif"; ctx.fillText(q.partyName || "あなたのパーティ", W / 2, 110);
+      ctx.font = "90px sans-serif"; ctx.fillText(rescuedEmojis(q), W / 2, 300);
+      ctx.fillStyle = "#2b2b28"; ctx.font = "bold 26px sans-serif";
+      ctx.fillText(n >= 4 ? "4人の姫を全員救出した！" : n + "人の姫を救出した！", W / 2, 390);
+      ctx.fillStyle = "#6b6b63"; ctx.font = "20px sans-serif"; ctx.fillText("━ 一緒に旅した仲間 ━", W / 2, 510);
+      ctx.fillStyle = "#2b2b28"; ctx.font = "bold 24px sans-serif";
+      wrapText(ctx, (q.memberNicknames || []).join(" / "), W / 2, 550, W - 80, 32);
+      ctx.fillStyle = "#e6a817"; ctx.font = "bold 24px sans-serif";
+      ctx.fillText("集めたチカラ " + q.totalPower + " ⭐️", W / 2, 660);
+      ctx.fillStyle = "#2f6d4f"; ctx.font = "bold 26px sans-serif"; ctx.fillText("#100分クエスト", W / 2, 710);
+      ctx.fillStyle = "#6b6b63"; ctx.font = "20px sans-serif"; ctx.fillText(fmtCardDate(q.date), W / 2, 745);
+      const a = document.createElement("a");
+      a.href = cv.toDataURL("image/png");
+      a.download = "100quest_" + (g.animal || "result") + ".png";
+      a.click();
+    });
+    function wrapText(ctx, text, x, y, maxW, lh) {
+      const words = text.split(" "); let line = ""; let yy = y;
+      for (const w of words) {
+        if (ctx.measureText(line + w).width > maxW && line) { ctx.fillText(line.trim(), x, yy); line = ""; yy += lh; }
+        line += w + " ";
+      }
+      ctx.fillText(line.trim(), x, yy);
+    }
+
+    function renderCoupons(coupons) {
+      const list = $("couponList");
+      if (!coupons.length) { list.innerHTML = '<div class="placeholder">お持ちのクーポンはありません</div>'; return; }
+      list.innerHTML = "";
+      coupons.forEach((c) => {
+        const row = document.createElement("div");
+        row.className = "coupon";
+        const isFree = (c.type === "free");
+        const amtHtml = isFree
+          ? '<span class="amt free">無料</span>'
+          : '<span class="amt">¥' + Number(c.amount).toLocaleString() + '</span>';
+        const label = isFree ? "参加無料クーポン" : "割引クーポン";
+        const exp = c.expiresAt ? (function () { const d = new Date(c.expiresAt); return (d.getMonth() + 1) + "/" + d.getDate() + "まで"; })() : "";
+        const held = c.status === "held"
+          ? '<br><b style="color:#b26a00">お支払い待ちの予約で使用中</b>' : "";
+        row.innerHTML = amtHtml +
+          '<span class="cinfo">' + label + '<br>' + esc(c.reason || "") + (exp ? "（" + exp + "）" : "") + held + '</span>';
+        list.appendChild(row);
+      });
+    }
+
+    // メンバーのプロフィールを表示
+    function openMemberProfile(m) {
+      $("mcName").textContent = (m.nickname || "") + (m.nickname === (currentUser.nickname || "") ? "（あなた）" : "");
+      $("mcGender").textContent = m.gender || "未設定";
+      $("mcTopic").textContent = powerLabel(m.topic) || "未設定";
+      $("mcDetail").textContent = m.topicDetail || "（記入はありません）";
+      // リベシティのプロフィールリンク（任意入力の人だけ表示。ID化して保存済みなのでURLはこちらで組み立てる）
+      const lb = $("mcLibe");
+      if (m.libeId) {
+        lb.classList.remove("hidden");
+        lb.onclick = () => openExternal("https://libecity.com/user_profile/" + encodeURIComponent(m.libeId));
+      } else {
+        lb.classList.add("hidden");
+      }
+      $("memberOverlay").classList.remove("hidden");
+    }
+    $("mcClose").addEventListener("click", () => $("memberOverlay").classList.add("hidden"));
+
+    function renderGroup(g) {
+      // 自分たちで名前を付けたらそれを表示（未命名は連番の「パーティ1」）
+      $("groupName").textContent = g.name;
+      // 命名後は名前がすぐ下に大きく出るので、発表用の見出しは消す
+      $("groupLead").classList.toggle("hidden", !!g.named);
+      $("groupSlot").textContent = formatSlot(g.date, g.time);
+      const box = $("groupMembers");
+      box.innerHTML = "";
+      (g.members || []).forEach((m) => {
+        const isMe = (m.nickname === (currentUser.nickname || ""));
+        const row = document.createElement("div");
+        row.className = "gmember" + (isMe ? " me" : "");
+        row.innerHTML =
+          '<span class="gm-name">' + esc(m.nickname || "") + (m.minor ? " 👧" : "") + '</span>' +
+          '<span class="gm-topic">' + esc(powerLabel(m.topic)) + ' ›</span>';
+        row.addEventListener("click", () => openMemberProfile(m)); // タップでプロフィール表示
+        box.appendChild(row);
+      });
+
+      // 到着状況
+      const cs = $("checkinStatus");
+      const total = g.total || (g.members || []).length;
+      const arrived = g.arrived || 0;
+      if (arrived >= total && total > 0) {
+        cs.innerHTML = '<span class="allset">🙌 全員集合しました！</span>';
+      } else if (g.checkedIn) {
+        cs.innerHTML = '✅ チェックイン済み（到着 ' + arrived + '/' + total + '人）';
+      } else {
+        cs.innerHTML = '到着 ' + arrived + '/' + total + '人<br>'
+          + '<span style="font-weight:400;font-size:12px;opacity:.9">会場でLINEのチェックインリンクをタップしてね</span>';
+      }
+    }
+
+    let lastSlots = [];   // 「子どもが参加」を切り替えたときに枠一覧を描き直すため
+    function renderSlots(slots, keepSelection) {
+      lastSlots = slots;
+      const prevSel = keepSelection ? selectedSlotId : null;
+      const minorMode = $("minorBorrowed").checked;
+      const list = $("slotList");
+      list.innerHTML = "";
+      selectedSlotId = null;
+      $("reserveBtn").disabled = true;
+      if (slots.length === 0) {
+        list.innerHTML = '<div class="empty">現在予約できる日時がありません</div>';
+        return;
+      }
+      slots.forEach((s) => {
+        const conflict = conflictsWithMine(s); // 予約済みの時間と重複・連続
+        const adultsBlocked = minorMode && s.adultsOnly;   // 子どもが参加するときは大人のみの枠を選べない
+        const disabled = s.isFull || s.closed || conflict || adultsBlocked;
+        const label = document.createElement("label");
+        label.className = "slot-card" + (disabled ? " disabled" : "");
+        let meta;
+        if (s.closed)       meta = '<span class="full">締切</span>';
+        else if (s.isFull)  meta = '<span class="full">満席</span>';
+        else if (conflict)  meta = '<span class="full">予約と時間が重複</span>';
+        else if (adultsBlocked) meta = '<span class="full">お子さまは参加できない枠です</span>';
+        else                meta = '<span class="ok-rem">残り' + s.remaining + '席</span>';
+        // 料金（決済を入れるまでは出さない）。事前と当日で金額が変わる
+        if (paymentsInfo && paymentsInfo.enabled && !disabled) {
+          meta += '<span class="slot-price">' + (s.priceNow ? yen(s.priceNow) : "無料") + '</span>';
+        }
+        label.innerHTML =
+          '<input type="radio" name="slot" value="' + esc(s.slotId) + '"' + (disabled?' disabled':'') + '>' +
+          '<div class="slot-date">' + formatSlot(s.date, "").trim() + '</div>' +
+          '<div class="slot-time">' + esc(s.time) + '</div>' +
+          '<div class="slot-meta">' + meta + '</div>' +
+          // 大人のみの枠：大人には目立たせず、子ども連れの家族が予約前に気づけるよう小さく添える
+          (s.adultsOnly && !adultsBlocked ? '<div class="kids-note">お子さまは参加できない枠です</div>' : '');
+        if (!disabled) {
+          label.addEventListener("click", () => {
+            document.querySelectorAll(".slot-card").forEach(c => c.classList.remove("sel"));
+            label.classList.add("sel");
+            label.querySelector("input").checked = true;
+            selectedSlotId = s.slotId;
+            $("reserveBtn").disabled = false;
+          });
+        }
+        list.appendChild(label);
+        if (!disabled && prevSel === s.slotId) label.click();   // 切り替え前の選択を引き継ぐ
+      });
+    }
+
+    // 日時を選んで予約（追加）
+    // ----- ⑬ だれと参加するか（ソロ／パーティを作る／コードで参加）-----
+    let partyMode = "solo";
+    let pendingPartyCode = null; // 支払い前に作ったパーティのコード（お支払い画面で伝える）
+    $("partyMode").addEventListener("click", (e) => {
+      const b = e.target.closest(".pm-opt"); if (!b) return;
+      partyMode = b.dataset.mode;
+      document.querySelectorAll("#partyMode .pm-opt").forEach((x) =>
+        x.classList.toggle("active", x.dataset.mode === partyMode));
+      $("joinCodeBox").classList.toggle("hidden", partyMode !== "join");
+      $("partyNote").classList.toggle("hidden", partyMode === "solo");
+      if (partyMode === "join") $("joinCode").focus();
+    });
+    // 入力は大文字4文字に寄せる（小文字・全角で打っても通るようサーバー側でも吸収している）
+    // 英数字のコード欄の共通処理。打っている最中（変換中を含む）は書き換えず、確定したときだけ整える。
+    // 入力のたびに中身を書き換えると、iPhoneの日本語入力や予測変換と衝突して文字が勝手に入ることがある。
+    function setupCodeInput(el, format) {
+      const tidy = () => { const v = format(el.value); if (v !== el.value) el.value = v; };
+      el.addEventListener("compositionend", tidy);
+      el.addEventListener("blur", tidy);
+      el.addEventListener("change", tidy);
+    }
+    // 全角英数字も半角にそろえる
+    const toHalfWidth = (s) => s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+    setupCodeInput($("joinCode"), (v) => toHalfWidth(v).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4));
+
+    // ② 18歳未満の子どもが保護者のスマホで参加
+    $("minorBorrowed").addEventListener("change", () => {
+      $("minorBox").classList.toggle("hidden", !$("minorBorrowed").checked);
+      if (lastSlots.length) renderSlots(lastSlots, true);   // 大人のみの枠を選べなくする／戻す
+      // 18歳未満は無料なので、枠一覧の金額も「無料」に見せる（外したら元に戻す）
+      document.querySelectorAll("#slotList .slot-price").forEach((el) => {
+        if (!el.dataset.price) el.dataset.price = el.textContent;
+        el.textContent = $("minorBorrowed").checked ? "無料（18歳未満）" : el.dataset.price;
+      });
+      if ($("minorBorrowed").checked) $("participantNickname").focus();
+    });
+    $("reserveBtn").addEventListener("click", async () => {
+      if (!selectedSlotId) return;
+      const minorBorrowed = $("minorBorrowed").checked;
+      const childName = $("participantNickname").value.trim();
+      if (minorBorrowed && !childName) {
+        setStatus("homeStatus", "参加するお子さまのニックネームを入力してね", "ng"); $("participantNickname").focus(); return;
+      }
+      // 変換の途中で押されても整った形で送る（全角・小文字・余計な記号を落とす）
+      const code = toHalfWidth($("joinCode").value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+      $("joinCode").value = code;
+      if (partyMode === "join" && code.length !== 4) {
+        setStatus("homeStatus", "パーティコード（4文字）を入力してね", "ng"); return;
+      }
+      $("reserveBtn").disabled = true;
+      setStatus("homeStatus", "予約中…", "");
+      const r = await api("reserveSlot", Object.assign({
+        lineUserId: profile.userId, slotId: selectedSlotId,
+        partyMode: partyMode, partyCode: code },
+        minorBorrowed ? { minorBorrowed: "1", minorConsent: "1", participantNickname: childName } : {}));
+      if (r.ok && r.status === "pending") {
+        // 支払いが必要な枠：席を押さえた状態でお支払い画面へ
+        pendingPartyCode = (partyMode === "create" && r.partyCode) ? r.partyCode : null;
+        openPay({ slotId: selectedSlotId, date: r.date, time: r.time, amount: r.amount, holdUntil: r.holdUntil });
+        if (pendingPartyCode) {
+          setStatus("homeStatus", "パーティコードは " + pendingPartyCode + " です（お支払い後に一覧で確認できます）", "");
+        }
+      } else if (r.ok && partyMode === "create" && r.partyCode) {
+        // コードを大きく見せる画面へ（仲間に伝えてもらう必要があるので予約一覧には戻さない）
+        $("chooseBox").classList.add("hidden");
+        $("myReserveBox").classList.add("hidden");
+        $("pdCode").textContent = r.partyCode;
+        $("pdSlot").textContent = formatSlot(r.date, r.time);
+        $("partyDoneBox").classList.remove("hidden");
+        setStatus("homeStatus", "", "");
+      } else if (r.ok && minorBorrowed) {
+        await renderReserve();
+        setStatus("homeStatus", "✅ お子さま（" + childName + "）の予約が確定しました（無料）"
+          + (r.partyCode ? "／パーティ " + r.partyCode : ""), "ok");
+      } else if (r.ok) {
+        setStatus("homeStatus", "✅ 予約しました（" + formatSlot(r.date, r.time) + "）"
+          + (r.partyCode ? "／パーティ " + r.partyCode + "（" + r.partySize + "人）" : ""), "ok");
+        await renderReserve(); // 予約一覧に戻る（追加された状態）
+      } else {
+        setStatus("homeStatus", "予約できませんでした：" + (r.error || ""), "ng");
+        $("reserveBtn").disabled = false;
+      }
+    });
+    $("pdCopyBtn").addEventListener("click", async () => {
+      const code = $("pdCode").textContent;
+      try {
+        await navigator.clipboard.writeText(code);
+        setStatus("homeStatus", "✅ コード " + code + " をコピーしました", "ok");
+      } catch (e) {
+        setStatus("homeStatus", "コードは " + code + " です（長押しでコピーできます）", "");
+      }
+    });
+    $("pdDoneBtn").addEventListener("click", async () => {
+      $("partyDoneBox").classList.add("hidden");
+      setStatus("homeStatus", "", "");
+      await renderReserve();
+    });
+
+    $("doneBackBtn").addEventListener("click", openMenu);
+    $("editBtn").addEventListener("click", () => openRegister(true));
+
+    // リベシティID → 無料クーポン取得
+    // クーポンコード：確定したときに大文字・4文字ごとにハイフンへ整える（小文字・全角・空白もサーバー側で吸収する）
+    setupCodeInput($("codeInput"), (v) => {
+      const c = toHalfWidth(v).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+      return c.length > 4 ? c.slice(0, 4) + "-" + c.slice(4) : c;
+    });
+    $("codeBtn").addEventListener("click", async () => {
+      const raw = toHalfWidth($("codeInput").value).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+      const val = raw.length > 4 ? raw.slice(0, 4) + "-" + raw.slice(4) : raw;
+      $("codeInput").value = val;
+      const st = $("codeStatus");
+      if (!val) { st.textContent = "クーポンコードを入力してください"; st.className = "ng"; return; }
+      $("codeBtn").disabled = true;
+      st.textContent = "確認中…"; st.className = "";
+      const r = await api("redeemCouponCode", { lineUserId: profile.userId, code: val });
+      if (r.ok) {
+        st.textContent = r.type === "free" ? "✅ 参加無料クーポンを登録しました！" : "✅ " + yen(r.amount) + "引きクーポンを登録しました！";
+        st.className = "ok";
+        $("codeInput").value = "";
+        const mc = await api("getMyCoupons", { lineUserId: profile.userId }); // 一覧更新
+        renderCoupons(mc.coupons || []);
+      } else {
+        st.textContent = "⚠️ " + (r.error || "登録できませんでした"); st.className = "ng";
+      }
+      $("codeBtn").disabled = false;
+    });
+
+    main();
+  </script>
+</body>
+</html>

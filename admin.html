@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>100 Quest 管理画面</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    :root { --green:#2f6d4f; --paper:#faf7f0; --ink:#2b2b28; --sub:#6b6b63; --err:#d6453d; --accent:#e6a817; }
+    body { font-family:-apple-system,"Hiragino Sans",sans-serif; background:var(--paper); color:var(--ink); line-height:1.6; }
+    .wrap { max-width:760px; margin:0 auto; padding:24px 20px 64px; }
+    h1 { color:var(--green); font-size:24px; margin-bottom:4px; }
+    .sub { color:var(--sub); font-size:13px; margin-bottom:20px; }
+    .card { background:#fff; border:1px solid #ece8dc; border-radius:12px; padding:18px; margin-bottom:18px; }
+    .card h2 { font-size:16px; color:var(--green); margin-bottom:12px; }
+    label { display:block; font-size:13px; font-weight:700; margin:10px 0 4px; }
+    input, select, textarea { width:100%; padding:10px 12px; font-size:15px; border:1px solid #d9d4c6; border-radius:8px; background:#fff; font-family:inherit; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; }
+    .row > div { flex:1; min-width:120px; }
+    button { padding:10px 16px; font-size:14px; font-weight:700; color:#fff; background:var(--green);
+      border:none; border-radius:8px; cursor:pointer; margin-top:12px; }
+    button.sub-btn { background:#fff; color:var(--green); border:1.5px solid var(--green); margin:4px 4px 0 0; padding:7px 12px; font-size:13px; }
+    button.warn { background:var(--accent); }
+    button.sub-btn.danger { color:var(--err); border-color:var(--err); }
+    button:disabled { opacity:.5; cursor:default; }
+    .status { font-size:13px; margin-top:10px; min-height:18px; white-space:pre-wrap; }
+    #questPrincessMsg:empty { display:none; } /* 姫の条件のエラーは出ているときだけ場所を取る */
+    .ok { color:var(--green); } .ng { color:var(--err); }
+    .slot-row { border:1px solid #ece8dc; border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+    .slot-row .meta { font-size:13px; color:var(--sub); }
+    .slot-row .title { font-weight:700; }
+    .pill { display:inline-block; font-size:11px; background:#eef5f0; color:var(--green); border-radius:6px; padding:1px 8px; margin-left:6px; }
+    .pill.okp   { background:#eef5f0; color:var(--green); }
+    .pill.warnp { background:#fdf3e3; color:#b96b00; }
+    .pill.errp  { background:#fdf1f0; color:var(--err); font-weight:700; }
+    .dl-presets { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+    .dl-presets .sub-btn { margin:0; padding:5px 9px; font-size:12px; }
+    #login { max-width:360px; margin:80px auto; }
+    .hidden { display:none !important; }
+    .logout { float:right; background:none; color:var(--sub); border:1px solid #d9d4c6; font-weight:400; margin:0; padding:6px 12px; }
+    .result { background:#f6f4ec; border-radius:8px; padding:12px; font-size:14px; margin-top:12px; }
+    /* 画面切り替えタブ（上部固定） */
+    .admin-tabs { position:sticky; top:0; z-index:50; display:flex; gap:6px; overflow-x:auto;
+      background:var(--paper); padding:10px 0 12px; margin-bottom:14px;
+      border-bottom:1px solid #e3ddcd; -webkit-overflow-scrolling:touch; }
+    .atab { flex-shrink:0; padding:9px 16px; border-radius:99px; border:1.5px solid #d9d4c6;
+      background:#fff; cursor:pointer; font-size:13.5px; font-weight:700; color:var(--sub); margin:0; }
+    .atab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    /* 日付タブ */
+    .tabs { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0; }
+    .tab { padding:7px 14px; border-radius:99px; border:1.5px solid #d9d4c6; background:#fff;
+      cursor:pointer; font-size:13px; font-weight:700; color:var(--sub); margin:0; }
+    .tab.active { background:var(--green); color:#fff; border-color:var(--green); }
+    /* マッチング結果のグループカード */
+    .result .rhead { font-weight:800; margin-bottom:8px; }
+    .gcard { border:1px solid #e3ddcd; border-radius:10px; padding:10px 12px; margin:8px 0; background:#fff; }
+    .gcard .gh { font-weight:800; font-size:15px; }
+    .gcard .gmeta { font-size:12px; color:var(--sub); margin:2px 0 6px; }
+    .gcard .gbadge { display:inline-block; background:#eef5f0; color:var(--green); border-radius:6px;
+      padding:1px 8px; font-size:11px; font-weight:700; margin-left:6px; }
+    .chip { display:inline-block; background:#f3faf5; border:1px solid #dceadf; border-radius:99px;
+      padding:3px 10px; margin:2px; font-size:13px; }
+    .chip.in { background:#eaf6ef; border-color:var(--green); color:var(--green); font-weight:700; }
+    /* 危険操作の2段階確認モーダル */
+    #confirmOverlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+      display:flex; align-items:center; justify-content:center; padding:24px; }
+    .confirm-card { width:340px; background:#fff; border-radius:14px; padding:22px 20px; }
+    .confirm-card .cc-title { font-size:17px; font-weight:800; color:var(--err); margin-bottom:10px; }
+    .confirm-card .cc-body { font-size:14px; line-height:1.6; margin-bottom:4px; white-space:pre-wrap; }
+    .confirm-card .cc-target { background:#fdf1f0; border:1px solid #f0c9c5; border-radius:8px;
+      padding:8px 12px; font-weight:700; margin:10px 0; text-align:center; }
+    .confirm-card .cc-step { font-size:12px; color:var(--err); min-height:16px; margin-bottom:12px; }
+    .confirm-card .cc-btns { display:flex; gap:10px; }
+    .confirm-card .cc-btns button { flex:1; margin-top:0; }
+    .confirm-card .cc-cancel { background:#ece8dc; color:var(--ink); }
+    .confirm-card .cc-ok { background:var(--err); }
+    /* ===== クエスト設定タブ ===== */
+    .q-summary { display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+      background:#f6f4ec; border-radius:8px; padding:10px 12px; font-size:13px; margin-bottom:18px; }
+    .q-summary .qs-main { font-weight:800; margin-right:2px; }
+    .q-summary .qs-p { background:#fff; border:1px solid #e3ddcd; border-radius:99px; padding:2px 10px; }
+    .q-summary .qs-p.zero { border-color:var(--err); color:var(--err); font-weight:700; }
+    .q-summary .qs-line { flex:1 0 100%; font-size:12px; margin-top:2px; }
+    .q-sec { margin-bottom:20px; }
+    .q-sec-h { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-weight:800; font-size:14px;
+      color:var(--green); border-bottom:1px solid #ece8dc; padding-bottom:6px; margin-bottom:10px; }
+    .q-note { font-weight:400; font-size:11.5px; color:var(--sub); }
+    /* 姫：1人1行 */
+    .q-prow { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      padding:8px 0; border-bottom:1px dashed #ece8dc; }
+    .q-prow .qp-name { font-weight:700; flex:0 0 130px; }
+    .q-prow input[type=number] { width:74px; padding:6px 8px; text-align:center; }
+    .q-prow .qp-unit { font-size:13px; color:var(--sub); }
+    .q-prow .qp-all { display:flex; align-items:center; gap:5px; margin:0 0 0 auto;
+      font-weight:400; font-size:12.5px; color:var(--sub); cursor:pointer; }
+    .q-prow .qp-all input { width:auto; }
+    /* ミッション：チカラで絞り込み＋1件1行 */
+    .q-filter { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+    .q-fbtn { margin:0; padding:5px 12px; border-radius:99px; border:1.5px solid #d9d4c6;
+      background:#fff; color:var(--sub); font-size:12.5px; font-weight:700; cursor:pointer; }
+    .q-fbtn.active { background:var(--green); color:#fff; border-color:var(--green); }
+    .q-mrow { display:flex; gap:6px; align-items:center; padding:5px 0; border-bottom:1px dashed #ece8dc; }
+    .q-mrow .qm-name { flex:1 1 auto; min-width:0; padding:7px 10px; font-size:14px; }
+    .q-mrow select { width:auto; padding:7px 4px; font-size:13px; }
+    .q-mrow .qm-power { flex:0 0 116px; }
+    .q-mrow .qm-stars { flex:0 0 84px; }
+    .q-mrow .qm-del { flex:0 0 auto; margin:0; padding:7px 10px; background:#fff; color:var(--sub);
+      border:1px solid #d9d4c6; border-radius:8px; font-size:13px; line-height:1.2; }
+    .q-mrow .qm-del:hover { color:var(--err); border-color:var(--err); }
+    .q-empty { font-size:13px; color:var(--sub); padding:10px 0; }
+    @media (max-width:540px) {
+      .q-mrow { flex-wrap:wrap; padding:8px 0; }
+      .q-mrow .qm-name { flex:1 0 100%; }
+      .q-prow .qp-all { margin-left:0; flex:1 0 100%; }
+    }
+    /* 保存バー */
+    .q-bar { position:sticky; bottom:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      background:#fff; border-top:1px solid #ece8dc; padding:10px 0 4px; margin-top:4px; }
+    .q-bar button { margin-top:0; }
+    .q-dirty { flex:1 1 130px; font-size:12.5px; font-weight:700; color:var(--err); }
+  </style>
+</head>
+<body>
+  <!-- ログイン -->
+  <div class="wrap hidden" id="loginWrap">
+    <div id="login" class="card">
+      <h2>100 Quest 管理画面</h2>
+      <label>管理者キー</label>
+      <input type="password" id="keyInput" placeholder="パスワードを入力" />
+      <button id="loginBtn" style="width:100%">ログイン</button>
+      <div class="status" id="loginStatus"></div>
+    </div>
+  </div>
+
+  <!-- 管理パネル -->
+  <div class="wrap hidden" id="panel">
+    <button class="logout" id="logoutBtn">ログアウト</button>
+    <h1>100 Quest 管理画面</h1>
+    <div class="sub">当日の運用操作はここから行います</div>
+
+    <!-- 画面切り替えタブ -->
+    <div class="admin-tabs">
+      <button class="atab active" data-tab="tab-slots">📅 予約枠</button>
+      <button class="atab" data-tab="tab-ops">🎪 当日運用</button>
+      <button class="atab" data-tab="tab-coupons">🎟 クーポン</button>
+      <button class="atab" data-tab="tab-spots">📍 集合場所</button>
+      <button class="atab" data-tab="tab-users">👤 ユーザー</button>
+      <button class="atab" data-tab="tab-quest">🏰 クエスト</button>
+    </div>
+
+    <!-- ===== タブ: クエスト設定 ===== -->
+    <div id="tab-quest" class="tab-page hidden">
+      <div class="card">
+        <h2>🏰 クエスト設定</h2>
+        <div class="sub" style="margin-bottom:12px">
+          パーティ<b>全員がチェックするとミッションクリア</b>。⭐の数だけそのチカラが貯まり、
+          合計が条件に届くと姫を救出します。
+        </div>
+
+        <!-- 現在のバランス（チカラごとの合計と、最後の姫に届くか）-->
+        <div id="questSummary" class="q-summary"></div>
+
+        <div class="q-sec">
+          <div class="q-sec-h">👑 姫の救出条件<span class="q-note">保存すると進行中のパーティにもすぐ反映</span></div>
+          <div id="questPrincessList"></div>
+          <div id="questPrincessMsg" class="status"></div>
+        </div>
+
+        <div class="q-sec">
+          <div class="q-sec-h">🐧 チュートリアル<span class="q-note">ブース前3つ＋移動1つ／合計＝ペンペン姫の条件になるように</span></div>
+          <div class="sub" style="font-size:12px; margin:-4px 0 10px">
+            行の追加・削除はできません（名前の入力欄や目的地の仕掛けが各行に紐づいているため）。
+            移動の行には <b>{destination}</b> を必ず残してください（📍集合場所タブの地点名が入ります）。
+          </div>
+          <div id="questTutorialList"></div>
+          <button class="sub-btn danger" id="resetTutorialBtn">チュートリアルを既定に戻す</button>
+        </div>
+
+        <div class="q-sec">
+          <div class="q-sec-h">🗒 ミッション<span class="q-note">反映は次にマッチングした枠から（進行中には影響なし）</span></div>
+          <div class="q-filter" id="missionFilter"></div>
+          <div id="questMissionList"></div>
+          <button class="sub-btn" id="addMissionBtn">＋ ミッションを追加</button>
+          <button class="sub-btn danger" id="resetMissionBtn">ミッションを既定に戻す</button>
+        </div>
+
+        <!-- 保存バー（下に固定。未保存のまま離れるのを防ぐ）-->
+        <div class="q-bar">
+          <div class="q-dirty" id="questDirty"></div>
+          <button class="sub-btn" id="reloadQuestBtn">読み込み直す</button>
+          <button id="saveAllQuestBtn">保存する</button>
+        </div>
+        <div class="status" id="questStatus"></div>
+      </div>
+    </div>
+
+    <!-- ===== タブ: 予約枠 ===== -->
+    <div id="tab-slots" class="tab-page">
+
+    <!-- スロット作成／編集 -->
+    <div class="card">
+      <h2 id="slotFormTitle">① 予約枠（スロット）を作成</h2>
+      <div class="row">
+        <div><label>日付</label><input type="date" id="slotDate" /></div>
+        <div><label>時間帯</label><input type="text" id="slotTime" placeholder="13:00〜14:50" />
+          <div class="meta" id="timeHint" style="margin-top:4px"></div></div>
+      </div>
+      <div class="row">
+        <div><label>定員</label><input type="number" id="slotCap" value="50" />
+          <div class="meta" id="capHint" style="margin-top:4px"></div></div>
+        <div><label>予約締切（必須）</label><input type="datetime-local" id="slotDeadline" />
+          <div class="dl-presets" id="dlPresets">
+            <button type="button" class="sub-btn" data-dl="prev20">前日20:00</button>
+            <button type="button" class="sub-btn" data-dl="60">開始60分前</button>
+            <button type="button" class="sub-btn" data-dl="10">開始10分前</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div><label>料金</label>
+          <select id="slotPrice">
+            <option value="standard">通常料金（事前1,500円／当日2,000円）</option>
+            <option value="free">無料（テストプレイ・招待）</option>
+          </select>
+          <div class="meta" id="priceHint" style="margin-top:4px"></div></div>
+      </div>
+      <label style="margin-top:10px; font-weight:400; cursor:pointer;">
+        <input type="checkbox" id="slotAdults" style="width:auto; margin-right:6px; vertical-align:middle;" />
+        <b>大人のみ</b>の枠にする（18歳未満は参加不可）
+      </label>
+      <div class="sub" style="margin:2px 0 0 22px;">
+        大人だけで遊びたい人向け。この枠ではお子さまの招待・「子どもが参加」の予約ができません。アプリでは枠に小さく「お子さまは参加できない枠です」と表示します。すでに入っている18歳未満の予約はそのまま残ります。
+      </div>
+      <div class="meta ng" id="adultsWarn" style="margin:4px 0 0 22px"></div>
+      <div class="sub" style="margin-top:6px">
+        <b>締切時刻に自動でマッチングされます</b>（LINE通知は送られません。内容を確認してから
+        「結果を一斉通知」を押してください）。締切後は参加者がキャンセルできなくなります。<br>
+        当日の飛び込み参加を受けたい枠は「開始10分前」にしてください（チェックインも10分前からです）。
+      </div>
+      <label style="margin-top:10px; font-weight:400; cursor:pointer;">
+        <input type="checkbox" id="slotTest" style="width:auto; margin-right:6px; vertical-align:middle;" />
+        ⏩ テストプレイ用の枠にする（<b>30分進行・3人基本グループ</b>）
+      </label>
+      <div class="sub" style="margin:2px 0 0 22px;">
+        進行が短縮されます：締切+5分／お題2 +12分／お題3 +25分／終了+30分。グループは3人＞4人＞5人の優先で分けます。
+      </div>
+      <button id="createSlotBtn">この枠を作成</button>
+      <button id="cancelEditBtn" class="sub-btn hidden">編集をやめる</button>
+      <div class="status" id="slotStatus"></div>
+    </div>
+
+    <!-- スロット一覧＋マッチング／通知 -->
+    <div class="card">
+      <h2>② 予約枠の一覧・マッチング・通知</h2>
+      <button class="sub-btn" id="reloadSlots">一覧を更新</button>
+      <div class="tabs" id="dateTabs"></div>
+      <!-- 締切必須化の移行用。締切が入っていない枠が残っていると自動マッチングが走らない -->
+      <div class="hidden" id="noDeadlineBox" style="background:#fdf1f0;border:1px solid #f0c9c5;border-radius:8px;padding:11px 13px;margin-bottom:12px">
+        <div style="font-weight:700;color:var(--err)" id="noDeadlineMsg"></div>
+        <div class="meta" style="margin-top:4px">締切が入っていない枠は<b>自動マッチングの対象になりません</b>。まとめて「開始60分前」を入れられます。</div>
+        <button class="sub-btn" id="fillDeadlineBtn">締切がない枠に「開始60分前」をまとめて設定</button>
+      </div>
+      <div id="slotList"></div>
+      <div class="result hidden" id="matchResult"></div>
+    </div>
+
+    </div><!-- /tab-slots -->
+
+    <!-- ===== タブ: 集合場所 ===== -->
+    <div id="tab-spots" class="tab-page hidden">
+
+    <!-- 集合場所 -->
+    <div class="card">
+      <h2 id="spotFormTitle">③ 地点を登録</h2>
+      <div class="sub" style="margin-bottom:10px">
+        ここに登録した地点が<b>チュートリアルの移動先</b>になります。マッチング時に登録順で
+        パーティへ順繰りに割り当て（<b>専有ではないので重複しても大丈夫</b>）、
+        ブース前の3つを終えるとペンペン姫が行き先として告げます。<br>
+        目安は<b>8〜12地点</b>（同時スタートが4〜8組のため）。条件はブースから徒歩3〜5分・目印になり迷わない・
+        動線を塞がない・人が滞留しても平気な広さ。<b>0件のときは全パーティ「スタート地点」と表示</b>されます。
+      </div>
+      <div class="row">
+        <div><label>種類</label>
+          <select id="spotType">
+            <option>長テーブル</option><option>丸テーブル</option><option>ソファー</option>
+          </select>
+        </div>
+        <div><label>番号</label><input type="number" id="spotNumber" value="1" /></div>
+      </div>
+      <button id="createSpotBtn">登録する</button>
+      <button id="cancelSpotEditBtn" class="sub-btn hidden">編集をやめる</button>
+      <button class="sub-btn" id="reloadSpots">一覧を更新</button>
+      <div class="status" id="spotStatus"></div>
+      <div id="spotList" style="margin-top:10px"></div>
+    </div>
+
+    </div><!-- /tab-spots -->
+
+    <!-- ===== タブ: クーポン ===== -->
+    <div id="tab-coupons" class="tab-page hidden">
+
+    <!-- クーポンコード -->
+    <div class="card">
+      <h2>④ クーポンコードを作る（仲間内に配る・1回限り）</h2>
+      <div class="sub" style="margin-bottom:10px">
+        作ったコードを相手に伝えると、相手がアプリの「クーポン」画面で入力して自分のクーポンにできます。1つのコードは1人・1回だけ使えます。
+      </div>
+      <div class="row">
+        <div><label>種類</label>
+          <select id="ccType">
+            <option value="free">参加無料</option>
+            <option value="discount">割引（円）</option>
+          </select></div>
+        <div><label>割引額（円）</label><input type="number" id="ccAmount" value="500" disabled /></div>
+      </div>
+      <div class="row">
+        <div><label>枚数</label><input type="number" id="ccCount" value="1" min="1" max="50" /></div>
+        <div><label>有効期限（任意）</label><input type="date" id="ccExpires" /></div>
+      </div>
+      <label>誰に渡すか（メモ）</label>
+      <input type="text" id="ccMemo" placeholder="例：田中さんグループ（4人分）" maxlength="100" />
+      <button id="createCodesBtn">コードを作る</button>
+      <div class="status" id="ccStatus"></div>
+      <div id="ccNew"></div>
+      <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center">
+        <b style="font-size:14px">作ったコード</b>
+        <button class="sub-btn" id="reloadCodesBtn">一覧を更新</button>
+      </div>
+      <div id="ccList" style="margin-top:8px"></div>
+      <div id="ccLegacy" class="meta" style="margin-top:12px"></div>
+    </div>
+
+    <!-- クーポン手動発行 -->
+    <div class="card">
+      <h2>⑤ クーポンを手動発行（割引額）</h2>
+      <label>送り先 LINEユーザーID（Uから始まる）</label>
+      <input type="text" id="cpUid" placeholder="U..." />
+      <div class="row">
+        <div><label>金額（円）</label><input type="number" id="cpAmount" value="500" /></div>
+        <div><label>理由</label><input type="text" id="cpReason" placeholder="お詫び 等" /></div>
+      </div>
+      <button id="issueCouponBtn">発行する</button>
+      <div class="status" id="cpStatus"></div>
+    </div>
+
+    </div><!-- /tab-coupons -->
+
+    <!-- ===== タブ: 当日運用 ===== -->
+    <div id="tab-ops" class="tab-page hidden">
+
+    <!-- イベント進行（自動アナウンス／不在対応）-->
+    <div class="card">
+      <h2>⑥ イベント進行（自動アナウンス・不在対応）</h2>
+      <div class="sub" style="margin-bottom:10px">
+        当日は<b>1分ごとに自動</b>で「締切→開始/不成立／終了予告／終了」を処理します。<br>
+        下は手動実行・動作テスト用です（時刻を指定すると、その時刻だと仮定して処理します）。
+      </div>
+      <label>対象スロットID</label>
+      <input type="text" id="tickSlot" placeholder="slotId（②の一覧でコピー）" />
+
+      <label style="margin-top:14px">テスト用チェックイン（LINEユーザーIDを入れて押す）</label>
+      <div class="row">
+        <div style="flex:2"><input type="text" id="tickCheckinUid" placeholder="U... または Ud_01 など" /></div>
+        <div style="flex:0"><button id="tickCheckinBtn" class="sub-btn" style="margin-top:0">チェックイン</button></div>
+      </div>
+
+      <label style="margin-top:14px">現在時刻として扱う日時（テスト用・空なら今）</label>
+      <input type="datetime-local" id="tickNow" />
+      <button id="runTickBtn">この枠を進行処理する</button>
+      <button id="runReminderBtn" class="sub-btn">リマインダー処理を実行</button>
+      <button id="runMatchTickBtn" class="sub-btn">自動マッチングを今すぐ回す</button>
+      <div class="sub" style="margin-top:6px">
+        「自動マッチングを今すぐ回す」＝本番では5分ごとに動いている処理を手動で1回実行します。
+        <b>締切を過ぎた・まだマッチングしていない枠すべて</b>が対象です（上の日時を入れるとその時刻基準）。
+        LINE通知は送られません。
+      </div>
+      <div class="sub" style="margin-top:6px">
+        リマインダーは本番では自動送信（前日20時＋開始1時間前）。テストは上の日時を
+        「枠の前日20時以降」や「開始60分前」にして実行。スロットIDを入れておくと、その枠の送信済みフラグをリセットしてから実行します（再テスト用）。
+      </div>
+      <div class="status" id="tickStatus"></div>
+    </div>
+
+    <!-- 一斉お知らせ配信 -->
+    <div class="card">
+      <h2>⑦ 一斉お知らせ配信</h2>
+      <div class="sub" style="margin-bottom:10px">
+        対象の予約者全員にLINEでメッセージを送ります（開始遅れ・集合場所変更・雨天案内など）。<br>
+        枠IDと日付の両方を入れた場合は<b>枠IDを優先</b>します。日付指定は同じ人が複数予約していても1通だけ届きます。
+      </div>
+      <div class="row">
+        <div><label>枠ID（この枠の予約者へ）</label><input type="text" id="bcSlot" placeholder="slotId（②の一覧でコピー）" /></div>
+        <div><label>または日付（この日の予約者全員へ）</label><input type="date" id="bcDate" /></div>
+      </div>
+      <label>メッセージ</label>
+      <textarea id="bcMsg" rows="4" placeholder="例：雨のため集合場所を屋内（〇〇前）に変更します。気をつけてお越しください。"></textarea>
+      <button class="sub-btn" id="bcPreviewBtn">対象人数とプレビューを確認</button>
+      <button class="warn" id="bcSendBtn">送信する</button>
+      <div class="status" id="bcStatus"></div>
+    </div>
+
+    </div><!-- /tab-ops -->
+
+    <!-- ===== タブ: ユーザー ===== -->
+    <div id="tab-users" class="tab-page hidden">
+
+    <!-- ユーザー検索 -->
+    <div class="card">
+      <h2>⑨ ユーザー検索</h2>
+      <div class="sub" style="margin-bottom:10px">
+        ニックネーム（前方一致）または LINEユーザーID（U…）で検索します。<br>
+        「予約できていますか？」などの問い合わせ対応用。予約・グループ・クーポンの状況をまとめて確認できます。
+      </div>
+      <div class="row">
+        <div style="flex:2"><input type="text" id="usQuery" placeholder="ニックネーム or U…" /></div>
+        <div style="flex:0"><button id="usBtn" style="margin-top:0">検索</button></div>
+      </div>
+      <div class="status" id="usStatus"></div>
+      <div id="usResults" style="margin-top:10px"></div>
+    </div>
+
+    <!-- 返金対応リスト -->
+    <div class="card">
+      <h2>⑧ 返金対応リスト</h2>
+      <div class="sub" style="margin-bottom:10px">
+        キャンセル・当日の不成立の返金は<b>自動</b>で行います。ここに出るのは、人の判断や対応が必要なものだけです。<br>
+        ・<b>マッチング不成立</b>：組み直しで入れる可能性があるので自動では返金しません。返すと決めたら「Stripeで返金」<br>
+        ・<b>返金に失敗</b>（PayPayでStripeの残高不足など）：残高が戻ってから「Stripeで返金」でやり直し<br>
+        ・Stripeの管理画面など別の方法で返した場合は「対応済みにする」
+      </div>
+      <button class="sub-btn" id="reloadRefunds">一覧を更新</button>
+      <div id="refundList" style="margin-top:10px"></div>
+    </div>
+
+    </div><!-- /tab-users -->
+  </div>
+
+  <!-- 危険操作の2段階確認モーダル -->
+  <div id="confirmOverlay" class="hidden">
+    <div class="confirm-card">
+      <div class="cc-title" id="ccTitle">確認</div>
+      <div class="cc-body" id="ccBody"></div>
+      <div class="cc-target" id="ccTarget"></div>
+      <div class="cc-step" id="ccStep"></div>
+      <div class="cc-btns">
+        <button class="cc-cancel" id="ccCancel">やめる</button>
+        <button class="cc-ok" id="ccOk">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 接続先は「開いた場所」で自動で切り替える。本番と開発用で同じファイルをそのままアップロードしてよい。
+    //   本番   = https://yuki-natori.github.io/bocchi-liff/…
+    //   開発用 = それ以外（開発用リポジトリ・手元で開いた場合など）。本番につながらない側に倒す
+    const ENVS = {
+      prod: { base: "https://asia-northeast1-bocchi-liff-test.cloudfunctions.net" },
+      dev:  { base: "https://asia-northeast1-quest100-kaihatsu.cloudfunctions.net" }
+    };
+    const ENV_NAME = location.pathname.startsWith("/bocchi-liff/") ? "prod" : "dev";
+    const BASE = ENVS[ENV_NAME].base;
+    // 開発用で開いているときは画面の隅に目印を出す（本番と取り違えないため）
+    if (ENV_NAME !== "prod") {
+      document.title = "【開発用】" + document.title;
+      const b = document.createElement("div");
+      b.textContent = "開発用";
+      b.style.cssText = "position:fixed;top:0;left:0;z-index:9999;background:#d33;color:#fff;font-size:11px;font-weight:bold;padding:2px 8px;border-bottom-right-radius:6px;pointer-events:none";
+      document.addEventListener("DOMContentLoaded", () => document.body.appendChild(b));
+      if (document.body) document.body.appendChild(b);
+    }
+    if (!BASE) alert("接続先が未設定です（" + ENV_NAME + "）");
+    // 本番と開発用は同じ github.io 上にあるので、ブラウザに覚える管理者キーは環境ごとに分ける
+    const KEY_STORE = ENV_NAME === "prod" ? "bocchi_admin_key" : "bocchi_admin_key_" + ENV_NAME;
+    const $ = (id) => document.getElementById(id);
+    const getKey = () => localStorage.getItem(KEY_STORE) || "";
+
+    async function api(path, params = {}, admin = true) {
+      // 管理者キーはURLに載せない（サーバーのアクセスログやブラウザの履歴に残るため）。
+      // POSTの本文で送る。値はこれまでのURL方式と同じく、すべて文字列にそろえる
+      // （数値のまま送ると、サーバー側の === "1" のような比較が合わなくなる）。
+      const body = {};
+      new URLSearchParams(params).forEach((v, k) => { body[k] = v; });
+      if (admin) body.adminKey = getKey();
+      const res = await fetch(BASE + "/" + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      let data;
+      try { data = await res.json(); } catch (e) { data = { error: "応答エラー" }; }
+      if (res.status === 401) { logout("管理者キーが違います。再ログインしてください"); throw new Error("401"); }
+      return data;
+    }
+    const set = (id, msg, cls) => { const e = $(id); e.textContent = msg; e.className = "status " + (cls || ""); };
+    // ユーザー入力（ニックネーム等）やAPI応答をinnerHTMLに入れる前は必ずこれでエスケープする
+    const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+    // 危険操作の2段階確認モーダル（対象を明記・赤ボタン・2回押しで実行）
+    function dangerConfirm({ title, body, target, confirmText }) {
+      return new Promise((resolve) => {
+        $("ccTitle").textContent = title || "確認";
+        $("ccBody").textContent = body || "";
+        $("ccTarget").textContent = target || "";
+        $("ccTarget").style.display = target ? "block" : "none";
+        $("ccOk").textContent = confirmText || "削除する";
+        $("ccStep").textContent = "";
+        let armed = false;
+        const overlay = $("confirmOverlay");
+        overlay.classList.remove("hidden");
+        const cleanup = (result) => {
+          overlay.classList.add("hidden");
+          $("ccOk").onclick = null; $("ccCancel").onclick = null;
+          resolve(result);
+        };
+        $("ccCancel").onclick = () => cleanup(false);
+        $("ccOk").onclick = () => {
+          if (!armed) {
+            armed = true;
+            $("ccStep").textContent = "⚠️ 取り消せません。もう一度押すと実行します。";
+            $("ccOk").textContent = "本当に" + (confirmText || "削除する");
+            return;
+          }
+          cleanup(true);
+        };
+      });
+    }
+
+    // ----- ログイン -----
+    // ----- 画面切り替えタブ -----
+    const TAB_STORE = "bocchi_admin_tab";
+    function showTab(id) {
+      if (!document.getElementById(id)) id = "tab-slots";
+      // クエスト設定を未保存のまま他のタブへ移るのを引き止める
+      if (id !== "tab-quest" && questDirty &&
+          !document.getElementById("tab-quest").classList.contains("hidden")) {
+        if (!confirm("クエスト設定に未保存の変更があります。保存せずに移動しますか？")) return;
+      }
+      document.querySelectorAll(".tab-page").forEach((p) => p.classList.toggle("hidden", p.id !== id));
+      document.querySelectorAll(".atab").forEach((b) => b.classList.toggle("active", b.dataset.tab === id));
+      localStorage.setItem(TAB_STORE, id);
+      // クエストタブは開いたときに初回だけ読み込む（読み込まないと姫・ミッション・チカラが空になる）
+      if (id === "tab-quest" && !questLoaded) loadQuestSettings();
+      if (id === "tab-coupons") loadCodes();
+    }
+    document.querySelectorAll(".atab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+
+    function showPanel() {
+      $("loginWrap").classList.add("hidden"); $("panel").classList.remove("hidden");
+      showTab(localStorage.getItem(TAB_STORE) || "tab-slots"); // 前回開いていたタブを復元
+      loadSlots(); loadSpots(); loadRefunds();
+    }
+    function logout(msg) {
+      localStorage.removeItem(KEY_STORE);
+      $("panel").classList.add("hidden"); $("loginWrap").classList.remove("hidden");
+      if (msg) set("loginStatus", msg, "ng");
+    }
+    $("loginBtn").addEventListener("click", () => {
+      const k = $("keyInput").value.trim();
+      if (!k) { set("loginStatus", "キーを入力してください", "ng"); return; }
+      localStorage.setItem(KEY_STORE, k);
+      showPanel();
+    });
+    $("logoutBtn").addEventListener("click", () => logout(""));
+
+    // ----- ① スロット作成／編集 -----
+    let editingSlotId = null; // 編集中の枠（nullなら新規作成）
+
+    // ISO(UTC) → datetime-local用の文字列（ブラウザのローカル=JST）
+    // ISO文字列 → 「7/2(金) 12:00」（日本時間・一覧表示用）
+    function fmtDateTime(iso) {
+      if (!iso) return "未設定";
+      const d = new Date(iso);
+      const w = ["日","月","火","水","木","金","土"][d.getDay()];
+      return (d.getMonth() + 1) + "/" + d.getDate() + "(" + w + ") " +
+        d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+    }
+    function isoToLocalInput(iso) {
+      if (!iso) return "";
+      const d = new Date(iso); const p = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+    }
+
+    function editSlot(s) {
+      editingSlotId = s.slotId;
+      $("slotDate").value = s.date;
+      $("slotTime").value = s.time;
+      $("slotCap").value = s.capacity;
+      $("slotDeadline").value = isoToLocalInput(s.deadline);
+      $("slotTest").checked = !!s.isTest;
+      $("slotPrice").value = s.priceType || (s.isTest ? "free" : "standard");
+      $("slotAdults").checked = !!s.adultsOnly;
+      $("adultsWarn").textContent = "";
+      updateTimeHint(); updateCapHint(); // テスト枠かどうかで基準（30分/100分・組数）が変わるので最後に計算
+      $("slotFormTitle").textContent = "① 予約枠を編集中";
+      $("createSlotBtn").textContent = "この内容で更新する";
+      $("cancelEditBtn").classList.remove("hidden");
+      set("slotStatus", "編集中：" + fmtDate(s.date) + " " + s.time, "");
+      $("slotFormTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function endEdit() {
+      editingSlotId = null;
+      $("slotFormTitle").textContent = "① 予約枠（スロット）を作成";
+      $("createSlotBtn").textContent = "この枠を作成";
+      $("cancelEditBtn").classList.add("hidden");
+      $("slotDate").value = ""; $("slotTime").value = ""; $("slotCap").value = "50"; $("slotDeadline").value = "";
+      $("slotTest").checked = false;
+      $("slotPrice").value = "standard";
+      $("slotAdults").checked = false; $("adultsWarn").textContent = "";
+      updateTimeHint(); updateCapHint(); // 編集していた枠の目安表示が残らないように
+      set("slotStatus", "", "");
+    }
+    $("cancelEditBtn").addEventListener("click", endEdit);
+    $("slotAdults").addEventListener("change", async () => {
+      $("adultsWarn").textContent = "";
+      if (!editingSlotId || !$("slotAdults").checked) return;
+      const r = await api("listSlotReservations", { slotId: editingSlotId });
+      const n = r.ok ? (r.summary.minors || 0) : 0;
+      if (n) $("adultsWarn").textContent = "⚠️ この枠にはすでに18歳未満の予約が" + n + "件あります。大人のみにしても、その予約はそのまま残ります（新しい予約から適用）";
+    });
+
+    // テスト枠にしたら料金は無料を初期値に（新規作成のときだけ。既存の枠の料金は勝手に変えない）
+    $("slotTest").addEventListener("change", () => {
+      if (!editingSlotId) $("slotPrice").value = $("slotTest").checked ? "free" : "standard";
+    });
+    // 料金の表示はサーバーの値に合わせる（金額はサーバー側の1か所＝特商法と一致させる場所で管理）
+    let paymentsInfo = null;
+    function renderPriceInfo() {
+      const p = paymentsInfo;
+      if (!p) return;
+      const yen = (n) => Number(n).toLocaleString("ja-JP") + "円";
+      $("slotPrice").options[0].textContent = "通常料金（事前" + yen(p.advance) + "／当日" + yen(p.sameDay) + "）";
+      $("priceHint").textContent = p.enabled
+        ? "事前／当日は予約した日で決まります（枠の当日に予約すると当日料金）"
+        : "決済の導入前なので、今はどちらを選んでも料金はかかりません";
+    }
+
+    // ----- 締切のプリセット・定員の目安 -----
+    // グループ分けの規則はサーバー側(index.js の makeGroupSizes/makeGroupSizesTest)と同じ。
+    // ここは入力しながら「最大何組か」を見せるための目安表示なので、ズレても実害はない。
+    function estParties(n, isTest) {
+      n = parseInt(n, 10);
+      if (!Number.isFinite(n) || n <= 0) return 0;
+      if (isTest) {
+        if (n <= 5) return 1;
+        const k = Math.floor(n / 3), r = n % 3;
+        return r === 0 ? k : (r === 1 ? k : k - 1);
+      }
+      if (n <= 6) return 1;
+      let k = Math.floor(n / 5);
+      return (n - 5 * k <= k) ? k : k + 1;
+    }
+    function updateCapHint() {
+      const n = $("slotCap").value, t = $("slotTest").checked;
+      const p = estParties(n, t);
+      $("capHint").textContent = p ? "満席なら 最大" + p + "組（" + (t ? "3人基本" : "5人基本") + "）" : "";
+    }
+    $("slotCap").addEventListener("input", updateCapHint);
+    $("slotTest").addEventListener("change", updateCapHint);
+    updateCapHint();
+
+    // 時間帯がクエストの長さより短いと、表示上の終了時刻を過ぎてもクエストが続き、
+    // 次の枠との「時間の重なり」判定もすり抜けてしまう。入力中に気づけるよう警告する。
+    // （本番＝100分・テスト枠＝30分。index.js の END_MIN / TEST_TIMING.endMin と同じ値）
+    function updateTimeHint() {
+      const t = $("slotTime").value.trim(), isTest = $("slotTest").checked;
+      const need = isTest ? 30 : 100;
+      const ms = t.match(/(\d{1,2}):(\d{2})/g);
+      const el = $("timeHint");
+      if (!ms || ms.length < 2) { el.textContent = ""; el.className = "meta"; return; }
+      const toMin = (x) => { const p = x.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+      const len = toMin(ms[1]) - toMin(ms[0]);
+      if (len <= 0) { el.textContent = "⚠️ 終了が開始より前になっています"; el.className = "meta ng"; return; }
+      if (len < need) {
+        el.textContent = "⚠️ " + len + "分しかありません。クエストは" + need + "分です（" + (need - len) + "分足りません）";
+        el.className = "meta ng";
+      } else {
+        el.textContent = len + "分（クエスト" + need + "分）"; el.className = "meta";
+      }
+    }
+    $("slotTime").addEventListener("input", updateTimeHint);
+    $("slotTest").addEventListener("change", updateTimeHint);
+
+    // 「時間帯」の先頭 HH:MM を開始時刻とみなす
+    function slotStartLocal() {
+      const date = $("slotDate").value, time = $("slotTime").value.trim();
+      const m = time.match(/(\d{1,2}):(\d{2})/);
+      if (!date || !m) return null;
+      const d = new Date(date + "T" + String(m[1]).padStart(2, "0") + ":" + m[2] + ":00");
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const toInputValue = (d) => {
+      const p = (x) => String(x).padStart(2, "0");
+      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+        "T" + p(d.getHours()) + ":" + p(d.getMinutes());
+    };
+    $("dlPresets").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-dl]"); if (!b) return;
+      const start = slotStartLocal();
+      if (!start) { set("slotStatus", "先に日付と時間帯を入力してください", "ng"); return; }
+      let d;
+      if (b.dataset.dl === "prev20") { d = new Date(start); d.setDate(d.getDate() - 1); d.setHours(20, 0, 0, 0); }
+      else d = new Date(start.getTime() - parseInt(b.dataset.dl, 10) * 60000);
+      $("slotDeadline").value = toInputValue(d);
+      set("slotStatus", "締切を " + fmtDateTime(d.toISOString()) + " にしました", "");
+    });
+
+    $("createSlotBtn").addEventListener("click", async () => {
+      const date = $("slotDate").value, time = $("slotTime").value.trim();
+      const capacity = $("slotCap").value, dl = $("slotDeadline").value;
+      if (!date || !time) { set("slotStatus", "日付と時間帯は必須です", "ng"); return; }
+      if (!dl) { set("slotStatus", "予約締切は必須です（この時刻に自動マッチングが走ります）", "ng"); return; }
+
+      if (editingSlotId) {
+        // 編集（更新）。isTestはチェック状態をそのまま送る（"1"/"0"）
+        const params = { slotId: editingSlotId, date, time, capacity, deadline: dl + "+09:00",
+          isTest: $("slotTest").checked ? "1" : "0", priceType: $("slotPrice").value,
+          adultsOnly: $("slotAdults").checked ? "1" : "0" };
+        set("slotStatus", "更新中…", "");
+        const r = await api("updateSlot", params);
+        if (r.ok) {
+          endEdit();   // 入力欄を空に戻す（中で状態表示も消えるので、そのあとに結果を出す）
+          set("slotStatus", "✅ 更新しました（" + date + " " + time + "）" +
+            (r.existingMinors ? "\n⚠️ この枠にはすでに18歳未満の予約が" + r.existingMinors + "件あります（そのまま残ります。大人のみは新しい予約から適用）" : ""),
+            r.existingMinors ? "ng" : "ok");
+          loadSlots();
+        }
+        else set("slotStatus", "⚠️ " + (r.error || "失敗"), "ng");
+      } else {
+        // 新規作成
+        const params = { date, time, capacity, deadline: dl + "+09:00", // 日本時間として送る
+          priceType: $("slotPrice").value };
+        if ($("slotTest").checked) params.isTest = "1";
+        if ($("slotAdults").checked) params.adultsOnly = "1"; // テストプレイ用（30分進行・3人グループ）
+        set("slotStatus", "作成中…", "");
+        const r = await api("createSlot", params);
+        if (r.ok) { set("slotStatus", "✅ 作成しました（" + date + " " + time + "）", "ok"); $("slotDate").value=""; $("slotTime").value=""; loadSlots(); }
+        else set("slotStatus", "⚠️ " + (r.error || "失敗"), "ng");
+      }
+    });
+
+    // ----- ② スロット一覧 -----
+    function fmtDate(d) {
+      const [y, m, day] = d.split("-").map(Number);
+      const w = ["日","月","火","水","木","金","土"][new Date(Date.UTC(y, m-1, day)).getUTCDay()];
+      return m + "/" + day + "(" + w + ")";
+    }
+    let allSlots = [];     // 取得した全スロット
+    let selectedDate = ""; // 選択中の日付タブ
+
+    async function loadSlots() {
+      const r = await api("getSlots", {}, false);
+      allSlots = r.slots || [];
+      if (r.payments) { paymentsInfo = r.payments; renderPriceInfo(); }
+      // 日付の一覧（昇順）
+      const dates = [...new Set(allSlots.map((s) => s.date))].sort();
+      if (!selectedDate || !dates.includes(selectedDate)) selectedDate = dates[0] || "";
+      renderDateTabs(dates);
+      renderSlotsForDate();
+      // 締切が入っていない枠の案内（自動マッチングが走らないので目立たせる）
+      const noDl = allSlots.filter((s) => !s.deadline);
+      $("noDeadlineBox").classList.toggle("hidden", !noDl.length);
+      if (noDl.length) $("noDeadlineMsg").textContent = "⚠️ 締切が未設定の枠が " + noDl.length + " 件あります";
+    }
+    $("reloadSlots").addEventListener("click", loadSlots);
+    $("fillDeadlineBtn").addEventListener("click", async () => {
+      const prev = await api("fillMissingDeadlines", { beforeMin: 60, dryRun: 1 });
+      if (!prev.ok) { set("slotStatus", "⚠️ " + esc(prev.error || "失敗"), "ng"); return; }
+      const ok = await dangerConfirm({
+        title: "締切をまとめて設定",
+        body: "締切が未設定の枠に「開始60分前」を締切として入れます。\n個別に変えたい枠は、あとで「編集」から直せます。",
+        target: prev.count + "件の枠",
+        confirmText: "まとめて設定する"
+      });
+      if (!ok) return;
+      set("slotStatus", "設定中…", "");
+      const r = await api("fillMissingDeadlines", { beforeMin: 60 });
+      if (r.ok) { set("slotStatus", "✅ " + r.count + "件に締切を設定しました", "ok"); loadSlots(); }
+      else set("slotStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
+    });
+
+    function renderDateTabs(dates) {
+      const tabs = $("dateTabs"); tabs.innerHTML = "";
+      dates.forEach((d) => {
+        const b = document.createElement("button");
+        b.className = "tab" + (d === selectedDate ? " active" : "");
+        const count = allSlots.filter((s) => s.date === d).length;
+        b.textContent = fmtDate(d) + "（" + count + "枠）";
+        b.onclick = () => { selectedDate = d; renderDateTabs(dates); renderSlotsForDate(); };
+        tabs.appendChild(b);
+      });
+    }
+
+    function renderSlotsForDate() {
+      const list = $("slotList"); list.innerHTML = "";
+      const slots = allSlots.filter((s) => s.date === selectedDate);
+      if (!slots.length) { list.innerHTML = '<div class="meta">この日の予約枠はありません</div>'; return; }
+      slots.forEach((s) => {
+        const div = document.createElement("div");
+        div.className = "slot-row";
+        // 運用状態のバッジ（締切→マッチング→通知 の進み具合が一目でわかるように）
+        const badges =
+          '<span class="pill">予約 ' + esc(s.reservedCount) + '/' + esc(s.capacity) + '</span>' +
+          (s.isTest ? '<span class="pill warnp">⏩テスト30分・3人組</span>' : '') +
+          (s.priceType === "free" ? '<span class="pill">無料</span>' : '') +
+          (s.adultsOnly ? '<span class="pill">大人のみ</span>' : '') +
+          (s.closed ? '<span class="pill">締切済</span>' : '') +
+          (!s.deadline ? '<span class="pill errp">⚠️締切未設定</span>' : '') +
+          (s.matchedAt ? '<span class="pill okp">✅マッチング済' + (s.matchedAuto ? '（自動）' : '') + '</span>' : '') +
+          (s.matchedAt && !s.notifiedAt ? '<span class="pill warnp">📣未通知</span>' : '') +
+          (s.notifiedAt ? '<span class="pill okp">📨通知済</span>' : '') +
+          (s.reNotifyNeeded ? '<span class="pill errp">⚠️再通知が必要</span>' : '');
+        div.innerHTML =
+          '<div class="title">' + esc(s.time) + badges + '</div>' +
+          (s.needsReview
+            ? '<div class="meta ng" style="font-weight:700">⚠️ ' + esc(s.needsReviewNote || "要確認") + '</div>' : '') +
+          '<div class="meta">締切 ' + (s.deadline ? esc(fmtDateTime(s.deadline)) : "未設定") +
+            '　／　満席時 最大' + esc(s.maxParties || "?") + '組' +
+            '　／　slotId: ' + esc(s.slotId) + '</div>';
+        const mBtn = document.createElement("button"); mBtn.className = "sub-btn"; mBtn.textContent = "マッチング実行";
+        mBtn.onclick = () => runMatch(s.slotId);
+        const vBtn = document.createElement("button"); vBtn.className = "sub-btn"; vBtn.textContent = "結果を確認";
+        vBtn.onclick = () => viewResult(s.slotId);
+        const yBtn = document.createElement("button"); yBtn.className = "sub-btn"; yBtn.textContent = "💳 予約者と支払い";
+        yBtn.onclick = () => viewPayments(s.slotId);
+        const pBtn = document.createElement("button"); pBtn.className = "sub-btn"; pBtn.textContent = "通知プレビュー";
+        pBtn.onclick = () => notify(s.slotId, true);
+        const nBtn = document.createElement("button"); nBtn.className = "sub-btn warn"; nBtn.textContent = "結果を一斉通知";
+        nBtn.onclick = () => notify(s.slotId, false);
+        const eBtn = document.createElement("button"); eBtn.className = "sub-btn"; eBtn.textContent = "編集";
+        eBtn.onclick = () => editSlot(s);
+        const dBtn = document.createElement("button"); dBtn.className = "sub-btn danger"; dBtn.textContent = "枠を削除";
+        dBtn.onclick = () => deleteSlot(s);
+        div.appendChild(mBtn); div.appendChild(vBtn); div.appendChild(yBtn); div.appendChild(pBtn); div.appendChild(nBtn); div.appendChild(eBtn); div.appendChild(dBtn);
+        if (s.needsReview) {
+          const rBtn = document.createElement("button"); rBtn.className = "sub-btn"; rBtn.textContent = "⚠️を消す";
+          rBtn.onclick = async () => {
+            const r = await api("resolveSlotReview", { slotId: s.slotId });
+            if (r.ok) loadSlots(); else set("slotStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
+          };
+          div.appendChild(rBtn);
+        }
+        list.appendChild(div);
+      });
+    }
+
+    // ----- 枠ごとの予約者と支払い（問い合わせ対応・会計の確認）-----
+    async function viewPayments(slotId) {
+      showResult('<div class="meta">読み込み中…</div>');
+      const r = await api("listSlotReservations", { slotId });
+      if (!r.ok) { showResult('<div class="meta ng">⚠️ ' + esc(r.error || "失敗") + '</div>'); return; }
+      const yen = (n) => Number(n || 0).toLocaleString("ja-JP") + "円";
+      const S = r.summary;
+      const hm = (iso) => { if (!iso) return ""; const d = new Date(iso); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); };
+      const rows = r.reservations.map((x) => {
+        const state = x.status === "pending"
+          ? '<span class="pill warnp">⏳ 支払い待ち' + (x.holdUntil ? "（" + hm(x.holdUntil) + "まで）" : "") + '</span>'
+          : '<span class="pill okp">確定</span>';
+        const money = x.status === "pending"
+          ? yen(x.amount) + "（未払い）"
+          : (x.paidAmount ? yen(x.paidAmount) + "支払い済み" : (x.coupon ? "0円" : (x.priceKind === "無料枠" || x.priceKind === "決済導入前" ? "—" : "0円")));
+        return '<div class="slot-row" style="padding:8px 12px">' +
+          '<div class="title" style="font-size:14px">' + esc(x.nickname || "(名前なし)") + state +
+            (x.minor === "invited" ? '<span class="pill warnp">👧 18歳未満（保護者：' + esc(x.guardianNickname || "") + 'さん）</span>'
+              : x.minor === "borrowed" ? '<span class="pill warnp">👧 18歳未満（保護者のスマホで参加・持ち主：' + esc(x.guardianNickname || "") + 'さん）</span>'
+              : (x.priceKind ? '<span class="pill">' + esc(x.priceKind) + '</span>' : '')) +
+            (x.coupon ? '<span class="pill">🎟 ' + esc(x.coupon) + (x.couponHeld ? "（押さえ中）" : "") + '</span>' : '') +
+            (x.refund ? '<span class="pill errp">' + esc(x.refund) + '</span>' : '') + '</div>' +
+          '<div class="meta">💴 ' + esc(money) +
+            (x.partyCode ? "　👑 " + esc(x.partyCode) : "") +
+            (x.groupName ? "　🐣 " + esc(x.groupName) : (x.unmatched ? "　😢 不成立" : "")) +
+            (x.checkedIn ? "　✅ 受付済" : "") + (x.noShow ? "　🚫 ノーショー" : "") + '</div>' +
+          '<div class="meta" style="font-size:11px">' + esc(x.lineUserId) + '</div></div>';
+      }).join("");
+      showResult(
+        '<h3 style="margin:0 0 6px">💳 ' + esc(fmtDate(r.slot.date)) + " " + esc(r.slot.time) + " の予約者と支払い</h3>" +
+        '<div class="meta" style="margin-bottom:8px">' +
+          "確定 <b>" + S.confirmed + "</b>人　／　支払い待ち <b>" + S.pending + "</b>人　／　クーポン利用 " + S.couponUsed + "人" +
+          (S.minors ? "　／　👧 18歳未満 " + S.minors + "人（0円）" : "") + "<br>" +
+          "受け取った額 <b>" + yen(S.paidTotal) + "</b>　−　返金 " + yen(S.refundedTotal) + "　＝　<b>" + yen(S.netTotal) + "</b>" +
+          '<span style="font-size:11px">（Stripeの手数料を引く前。キャンセルで返金した分も含めて計算）</span></div>' +
+        (rows || '<div class="meta">予約はありません</div>'));
+    }
+
+    // 結果ボックスを表示して画面内にスクロール
+    function showResult(html) {
+      const box = $("matchResult");
+      box.classList.remove("hidden");
+      box.innerHTML = html;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    // グループ一覧をHTMLに整形（カード＋メンバーをチップ表示）
+    function groupsHtml(groups) {
+      return (groups || []).map((g) => {
+        const arrivedSet = (typeof g.arrived === "number");
+        // メンバーは文字列(マッチング直後)か{nickname,checkedIn}(結果確認)のどちらか
+        const mlist = (g.members || []).map((m) => typeof m === "string" ? { nickname: m, checkedIn: false } : m);
+        const chips = mlist.map((m) =>
+          '<span class="chip' + (m.checkedIn ? ' in' : '') + '">' + (m.checkedIn ? "✓ " : "") + esc(m.nickname) + '</span>'
+        ).join("");
+        // クエストの進捗（チカラ合計・救出した姫）
+        const hasQuest = (typeof g.totalPower === "number");
+        const pw = g.powers || {};
+        const pwLine = hasQuest
+          ? "<div class='gmeta'>⚡ チカラ " + esc(g.totalPower) +
+            "　／　救出 " + esc((g.rescued || []).length) + "人 " + esc(g.rescuedEmojis || "") +
+            "　／　💰" + esc(pw.save || 0) + " 💪" + esc(pw.earn || 0) + " 📈" + esc(pw.grow || 0) +
+            " 🛡" + esc(pw.protect || 0) + " 🎁" + esc(pw.use || 0) + "</div>"
+          : "";
+        // プレイヤーが名前を付けたら「〇〇（パーティ1）」と両方出す（管理側の識別用に連番を残す）
+        const title = g.partyName ? esc(g.partyName) + "（" + esc(g.name) + "）" : esc(g.name);
+        return "<div class='gcard'>" +
+          "<div class='gh'>" + title +
+          (hasQuest ? "<span class='gbadge'>チカラ " + esc(g.totalPower) + "</span>" : "") + "</div>" +
+          "<div class='gmeta'>" +
+          (arrivedSet ? "到着 " + g.arrived + "/" + g.total + "人　／　" : "") +
+          (g.members || []).length + "人" +
+          (g.destination ? "　／　🚶 移動先 " + esc(g.destination) : "") +
+          (g.partyMix ? "　／　👑 " + esc(g.partyMix) : "") +
+          (g.tutorialDone === true ? "　／　🐧 チュートリアル完了" : "") + "</div>" +
+          pwLine +
+          "<div>" + chips + "</div></div>";
+      }).join("");
+    }
+
+    async function runMatch(slotId) {
+      if (!confirm("この枠でマッチングを実行します。よろしいですか？（再実行すると組み直されます）")) return;
+      showResult("マッチング中…");
+      const r = await api("runMatching", { slotId });
+      if (r.ok) {
+        let head = "✅ マッチング完了：参加者 " + r.participantCount + "人 / " + r.groupCount + "グループ<br>";
+        if (r.unmatchedCount) head += "😢 不成立 " + r.unmatchedCount + "人（お詫びクーポン" + r.couponsIssued + "枚発行）<br>";
+        // 🏰クエストタブで編集したミッションが本当に使われたかをその場で確認できるようにする
+        if (typeof r.missionCount === "number") {
+          head += "🏰 ミッション " + r.missionCount + "件を適用" +
+            (r.missionsCustom ? "（管理画面で編集したもの）" : "（コードの既定）") +
+            "　／　🐧 チュートリアル " + (r.tutorialCount || 0) + "件<br>" +
+            (r.destinationCount
+              ? "🚶 移動先 " + r.destinationCount + "地点を順繰りに割り当て<br>"
+              : '<span class="ng">⚠️ 📍集合場所が0件です。全パーティが「スタート地点」と表示され、混雑します</span><br>') +
+            '<div class="meta" style="font-size:12px;margin:2px 0 8px">' +
+            esc((r.missionNames || []).join(" / ")) + "</div>";
+        }
+        // 事前登録パーティの内訳
+        if (typeof r.declaredParties === "number") {
+          head += "👑 事前登録パーティ " + r.declaredParties + "組" +
+            "（3人以上でそのまま成立 " + r.declaredKept + "組" +
+            (r.mergedPeople ? "／合流して編成 " + r.mergedPeople + "人" : "") + "）<br>";
+          if (r.absorbedPeople) {
+            head += '<span class="ok">↳ 余った ' + r.absorbedPeople +
+              '人は、空きのある事前登録パーティに合流させました（不成立を避けるための例外）</span><br>';
+          }
+        }
+        if (r.deferredCount) {
+          head += '<span class="ng">⚠️ ' + r.deferredCount + '人（' + esc((r.deferredNames || []).join("・")) +
+            '）はパーティに入れられませんでした。不成立にはしていないので、組み直すか個別に対応してください</span><br>';
+        }
+        if (r.reNotifyNeeded) {
+          head += '<span class="ng">⚠️ 通知済みの枠を組み直しました。<b>もう一度「結果を一斉通知」してください</b></span><br>';
+        }
+        showResult(head + groupsHtml(r.groups));
+        loadSlots();
+      } else showResult("⚠️ " + esc(r.error || "失敗"));
+    }
+
+    async function viewResult(slotId) {
+      showResult("結果を読み込み中…");
+      const r = await api("getMatchingResult", { slotId });
+      if (!r.ok) { showResult("⚠️ " + esc(r.error || "失敗")); return; }
+      if (!r.groupCount) { showResult("この枠はまだマッチングされていません。「マッチング実行」を押してください。"); return; }
+      showResult("📋 マッチング結果（" + r.groupCount + "グループ）<br>" + groupsHtml(r.groups));
+    }
+
+    async function deleteSlot(s) {
+      const warn = s.reservedCount > 0
+        ? "この枠には予約が" + s.reservedCount + "件あります。予約とマッチング結果もすべて削除されます。"
+        : "この枠を削除します。";
+      const ok = await dangerConfirm({
+        title: "予約枠を削除",
+        body: warn,
+        target: fmtDate(s.date) + " " + s.time + " の枠",
+        confirmText: "削除する"
+      });
+      if (!ok) return;
+      showResult("削除中…");
+      const r = await api("deleteSlot", { slotId: s.slotId });
+      if (r.ok) {
+        showResult("🗑 枠を削除しました（予約 " + r.deletedReservations + "件・グループ " + r.deletedGroups + "件も削除）");
+        loadSlots();
+      } else showResult("⚠️ " + esc(r.error || "失敗"));
+    }
+
+    async function notify(slotId, dry, force) {
+      if (!dry && !force && !confirm("このパーティ全員にLINEで結果を送信します。送信してよいですか？")) return;
+      showResult(dry ? "プレビュー取得中…" : "送信中…");
+      const params = dry ? { slotId, dryRun: "1" } : (force ? { slotId, force: "1" } : { slotId });
+      const r = await api("notifyMatchingResults", params);
+      if (r.ok && dry) {
+        showResult("【プレビュー】対象 " + r.targetCount + "人<br>――――<br>" + esc(r.sampleMessage || "").replace(/\n/g, "<br>"));
+      } else if (r.ok) {
+        showResult("✅ 送信完了：" + r.sent + "件成功 / " + r.failed + "件失敗"
+          + (r.resent ? "<br>（2回目の送信でした）" : ""));
+        loadSlots();
+      } else if (r.alreadyNotified) {
+        // 二重送信は既定で止める。送り直すなら2段階確認で明示的に。
+        showResult("⚠️ " + esc(r.error));
+        const ok = await dangerConfirm({
+          title: "もう一度送信しますか",
+          body: "この枠はすでに通知済みです。もう一度送ると、参加者に同じ内容の2通目が届きます。\n組み直したあとで送り直す場合だけ実行してください。",
+          target: "この枠の参加者全員",
+          confirmText: "それでも送信する"
+        });
+        if (ok) await notify(slotId, false, true);
+      } else {
+        showResult("⚠️ " + esc(r.error || "失敗"));
+      }
+    }
+
+    // ----- ③ 集合場所（登録・編集・削除）-----
+    let editingSpotId = null;
+
+    $("createSpotBtn").addEventListener("click", async () => {
+      const type = $("spotType").value, number = $("spotNumber").value;
+      if (editingSpotId) {
+        set("spotStatus", "更新中…", "");
+        const r = await api("updateMeetingSpot", { spotId: editingSpotId, type, number });
+        if (r.ok) { set("spotStatus", "✅ 更新：" + r.label, "ok"); endSpotEdit(); loadSpots(); }
+        else set("spotStatus", "⚠️ " + (r.error || "失敗"), "ng");
+      } else {
+        set("spotStatus", "登録中…", "");
+        const r = await api("createMeetingSpot", { type, number });
+        if (r.ok) { set("spotStatus", "✅ 登録：" + r.label, "ok"); loadSpots(); }
+        else set("spotStatus", "⚠️ " + (r.error || "失敗"), "ng");
+      }
+    });
+    function editSpot(s) {
+      editingSpotId = s.spotId;
+      $("spotType").value = s.type;
+      $("spotNumber").value = s.number;
+      $("spotFormTitle").textContent = "③ 集合場所を編集中";
+      $("createSpotBtn").textContent = "この内容で更新する";
+      $("cancelSpotEditBtn").classList.remove("hidden");
+      set("spotStatus", "編集中：" + s.label, "");
+    }
+    function endSpotEdit() {
+      editingSpotId = null;
+      $("spotFormTitle").textContent = "③ 集合場所を登録";
+      $("createSpotBtn").textContent = "登録する";
+      $("cancelSpotEditBtn").classList.add("hidden");
+      set("spotStatus", "", "");
+    }
+    $("cancelSpotEditBtn").addEventListener("click", endSpotEdit);
+    async function deleteSpot(s) {
+      const ok = await dangerConfirm({
+        title: "集合場所を削除",
+        body: "この集合場所を削除します。よろしいですか？",
+        target: s.label,
+        confirmText: "削除する"
+      });
+      if (!ok) return;
+      const r = await api("deleteMeetingSpot", { spotId: s.spotId });
+      if (r.ok) { set("spotStatus", "🗑 削除しました：" + s.label, "ok"); loadSpots(); }
+      else set("spotStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    }
+    $("reloadSpots").addEventListener("click", loadSpots);
+    async function loadSpots() {
+      const r = await api("getMeetingSpots", {}, false);
+      const list = $("spotList"); list.innerHTML = "";
+      const spots = r.spots || [];
+      if (!spots.length) { list.innerHTML = '<div class="meta">登録済みの集合場所はありません</div>'; return; }
+      spots.forEach((s) => {
+        const div = document.createElement("div");
+        div.className = "slot-row";
+        div.innerHTML = '<span class="title">' + esc(s.label) + '</span>';
+        const e = document.createElement("button"); e.className = "sub-btn"; e.textContent = "編集"; e.onclick = () => editSpot(s);
+        const d = document.createElement("button"); d.className = "sub-btn danger"; d.textContent = "削除"; d.onclick = () => deleteSpot(s);
+        div.appendChild(e); div.appendChild(d);
+        list.appendChild(div);
+      });
+    }
+
+    // ----- ④ クーポンコード -----
+    $("ccType").addEventListener("change", () => { $("ccAmount").disabled = $("ccType").value !== "discount"; });
+    $("createCodesBtn").addEventListener("click", async () => {
+      const type = $("ccType").value, amount = $("ccAmount").value, count = $("ccCount").value;
+      const memo = $("ccMemo").value.trim(), expiresAt = $("ccExpires").value;
+      if (type === "discount" && !(parseInt(amount, 10) > 0)) { set("ccStatus", "割引額を入力してください", "ng"); return; }
+      set("ccStatus", "作成中…", "");
+      $("createCodesBtn").disabled = true;
+      const r = await api("createCouponCodes", { type, amount, count, memo, expiresAt });
+      $("createCodesBtn").disabled = false;
+      if (!r.ok) { set("ccStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      set("ccStatus", "✅ " + r.codes.length + "件のコードを作りました", "ok");
+      // 作ったコードは目立つ形で出す（まとめてコピーできるように）
+      const text = r.codes.join("\n");
+      $("ccNew").innerHTML = '<textarea readonly style="margin-top:8px;font-family:monospace;font-size:15px;letter-spacing:.06em" rows="' +
+        Math.min(10, r.codes.length + 1) + '">' + esc(text) + '</textarea>' +
+        '<button class="sub-btn" id="ccCopyBtn">コードをコピー</button>';
+      $("ccCopyBtn").onclick = async () => {
+        try { await navigator.clipboard.writeText(text); set("ccStatus", "✅ コピーしました", "ok"); }
+        catch (e) { $("ccNew").querySelector("textarea").select(); }
+      };
+      $("ccMemo").value = "";
+      loadCodes();
+    });
+    async function loadCodes() {
+      const box = $("ccList");
+      box.innerHTML = '<div class="meta">読み込み中…</div>';
+      const r = await api("listCouponCodes");
+      if (!r.ok) { box.innerHTML = '<div class="meta">⚠️ ' + esc(r.error || "失敗") + '</div>'; return; }
+      const STATUS = { active: "未使用", redeemed: "使用済み", disabled: "無効" };
+      const fmt = (iso) => { if (!iso) return ""; const d = new Date(iso); return (d.getMonth() + 1) + "/" + d.getDate(); };
+      box.innerHTML = r.codes.length ? "" : '<div class="meta">まだありません</div>';
+      r.codes.forEach((c) => {
+        const div = document.createElement("div");
+        div.className = "slot-row";
+        const expired = c.expiresAt && new Date(c.expiresAt) < new Date() && c.status === "active";
+        div.innerHTML =
+          '<div class="title" style="font-family:monospace;letter-spacing:.06em">' + esc(c.code) +
+          '<span class="pill ' + (c.status === "active" && !expired ? "okp" : "") + '">' + (expired ? "期限切れ" : STATUS[c.status] || esc(c.status)) + '</span>' +
+          '<span class="pill">' + (c.type === "free" ? "参加無料" : esc(Number(c.amount).toLocaleString("ja-JP")) + "円引き") + '</span></div>' +
+          '<div class="meta">' + (c.memo ? "📝 " + esc(c.memo) + "　" : "") + "作成 " + fmt(c.createdAt) +
+          (c.expiresAt ? "　期限 " + fmt(c.expiresAt) : "") +
+          (c.status === "redeemed" ? "　／　使った人：" + esc(c.redeemedNickname || c.redeemedBy) + "（" + fmt(c.redeemedAt) + "）" : "") + '</div>';
+        if (c.status !== "redeemed") {
+          const b = document.createElement("button");
+          b.className = "sub-btn";
+          b.textContent = c.status === "disabled" ? "有効に戻す" : "無効にする";
+          b.onclick = async () => {
+            b.disabled = true;
+            const rr = await api("disableCouponCode", c.status === "disabled" ? { code: c.code, undo: "1" } : { code: c.code });
+            if (rr.ok) loadCodes(); else { b.disabled = false; alert("⚠️ " + (rr.error || "失敗")); }
+          };
+          div.appendChild(b);
+        }
+        box.appendChild(div);
+      });
+      // 旧方式（リベシティID照合）の登録状況。未使用が0件なら廃止してよい
+      const L = r.legacyLibe || { total: 0, unredeemed: [] };
+      $("ccLegacy").innerHTML = "旧方式（リベシティID照合）の登録：" + L.total + "件・うち未使用 " + L.unredeemed.length + "件" +
+        (L.unredeemed.length ? "（" + L.unredeemed.map((x) => esc(x.note || x.libeId)).join("、") + "）" : "") +
+        "<br>アプリの入力欄はコード方式に切り替えたため、旧方式の対象者はアプリから受け取れません。未使用の人にはコードを渡してください。";
+    }
+    $("reloadCodesBtn").addEventListener("click", loadCodes);
+
+    // ----- ⑤ クーポン手動発行 -----
+    $("issueCouponBtn").addEventListener("click", async () => {
+      const lineUserId = $("cpUid").value.trim(), amount = $("cpAmount").value, reason = $("cpReason").value.trim();
+      if (!lineUserId) { set("cpStatus", "LINEユーザーIDを入力してください", "ng"); return; }
+      set("cpStatus", "発行中…", "");
+      const r = await api("issueCoupon", { lineUserId, amount, reason });
+      if (r.ok) { set("cpStatus", "✅ ¥" + r.amount + " クーポンを発行しました", "ok"); }
+      else set("cpStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    // ----- ⑥ イベント進行 -----
+    $("tickCheckinBtn").addEventListener("click", async () => {
+      const slotId = $("tickSlot").value.trim();
+      const lineUserId = $("tickCheckinUid").value.trim();
+      if (!slotId || !lineUserId) { set("tickStatus", "スロットIDとユーザーIDを入力してください", "ng"); return; }
+      set("tickStatus", "チェックイン中…", "");
+      // adminKey付きで呼ぶと「開始10分前から」の時間制限をバイパスできる（未来日付のテスト用）
+      const r = await api("checkIn", { lineUserId, slotId });
+      if (r.ok) { set("tickStatus", "✅ チェックイン（到着 " + r.arrived + "/" + r.total + "人）", "ok"); $("tickCheckinUid").value = ""; }
+      else set("tickStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    $("runTickBtn").addEventListener("click", async () => {
+      const slotId = $("tickSlot").value.trim();
+      if (!slotId) { set("tickStatus", "スロットIDを入力してください", "ng"); return; }
+      const nowVal = $("tickNow").value;
+      set("tickStatus", "処理中…", "");
+      const params = { slotId };
+      if (nowVal) params.now = nowVal + "+09:00"; // 日本時間として送る
+      const r = await api("runEventTick", params);
+      if (r.ok) set("tickStatus", "✅ " + r.processedGroups + "グループを処理しました（基準時刻 " + r.at + "）", "ok");
+      else set("tickStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    // 自動マッチング（本番は5分ごと）を手動で1回。締切を過ぎた未マッチングの枠がまとめて処理される。
+    $("runMatchTickBtn").addEventListener("click", async () => {
+      const nowVal = $("tickNow").value;
+      set("tickStatus", "自動マッチングを実行中…", "");
+      const params = {};
+      if (nowVal) params.now = nowVal + "+09:00";
+      const r = await api("runMatchingTick", params);
+      if (!r.ok) { set("tickStatus", "⚠️ " + esc(r.error || "失敗"), "ng"); return; }
+      if (!r.matched.length) {
+        set("tickStatus", "対象の枠はありませんでした（締切を過ぎていて、まだマッチングしていない枠が対象です）", "");
+      } else {
+        set("tickStatus", "✅ " + r.matched.length + "枠をマッチングしました\n" +
+          r.matched.map((m) => "・" + m.date + " " + m.time + " → " + m.groups + "パーティ" +
+            (m.deferred ? "（⚠️ " + m.deferred + "人は保留）" : "")).join("\n"), "ok");
+      }
+      loadSlots();
+    });
+
+    // リマインダー処理（前日20時＋開始1時間前）を手動実行。スロットID入力済みならフラグをリセットして再テスト可。
+    $("runReminderBtn").addEventListener("click", async () => {
+      const nowVal = $("tickNow").value;
+      const slotId = $("tickSlot").value.trim();
+      set("tickStatus", "リマインダー処理中…", "");
+      const params = {};
+      if (nowVal) params.now = nowVal + "+09:00";
+      if (slotId) params.clearFlags = slotId;
+      const r = await api("runReminderTick", params);
+      if (r.ok) {
+        const day = (r.day || []).map((x) => x.time + "(" + x.sent + "人)").join("・") || "なし";
+        const hour = (r.hour || []).map((x) => x.time + "(" + x.sent + "人)").join("・") || "なし";
+        set("tickStatus", "✅ 前日リマインド: " + day + " ／ 直前リマインド: " + hour + "（基準時刻 " + r.at + "）", "ok");
+      } else set("tickStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    // ----- ⑦ 一斉お知らせ配信 -----
+    function bcParams() {
+      const slotId = $("bcSlot").value.trim();
+      const date = $("bcDate").value;
+      const message = $("bcMsg").value.trim();
+      if (!message) { set("bcStatus", "メッセージを入力してください", "ng"); return null; }
+      if (!slotId && !date) { set("bcStatus", "枠ID か 日付 のどちらかを指定してください", "ng"); return null; }
+      const p = { message };
+      if (slotId) p.slotId = slotId; else p.date = date; // 枠ID優先
+      return p;
+    }
+
+    $("bcPreviewBtn").addEventListener("click", async () => {
+      const p = bcParams(); if (!p) return;
+      set("bcStatus", "確認中…", "");
+      const r = await api("broadcastMessage", { ...p, dryRun: "1" });
+      if (r.ok) set("bcStatus", "対象：" + r.target + "（" + r.targetCount + "人）\n――――\n" + r.sample, "ok");
+      else set("bcStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    $("bcSendBtn").addEventListener("click", async () => {
+      const p = bcParams(); if (!p) return;
+      set("bcStatus", "対象を確認中…", "");
+      // まず対象人数を取得してから、2段階確認して送信
+      const pre = await api("broadcastMessage", { ...p, dryRun: "1" });
+      if (!pre.ok) { set("bcStatus", "⚠️ " + (pre.error || "失敗"), "ng"); return; }
+      if (!pre.targetCount) { set("bcStatus", "対象の予約者がいません", "ng"); return; }
+      set("bcStatus", "", "");
+      const ok = await dangerConfirm({
+        title: "一斉お知らせを送信",
+        body: "次の対象にLINEでメッセージを送ります。送信後は取り消せません。",
+        target: pre.target + "（" + pre.targetCount + "人）",
+        confirmText: "送信する"
+      });
+      if (!ok) return;
+      set("bcStatus", "送信中…", "");
+      const r = await api("broadcastMessage", p);
+      if (r.ok) { set("bcStatus", "✅ 送信完了：" + r.sent + "件成功 / " + r.failed + "件失敗（対象" + r.targetCount + "人）", "ok"); $("bcMsg").value = ""; }
+      else set("bcStatus", "⚠️ " + (r.error || "失敗"), "ng");
+    });
+
+    // ----- ⑧ 返金対応リスト -----
+    async function loadRefunds() {
+      const box = $("refundList");
+      box.innerHTML = '<div class="meta">読み込み中…</div>';
+      const r = await api("listRefunds");
+      if (!r.ok) { box.innerHTML = '<div class="meta">⚠️ ' + esc(r.error || "失敗") + '</div>'; return; }
+      box.innerHTML = "";
+      if (!r.pending.length && !r.done.length) {
+        box.innerHTML = '<div class="meta">返金対象はありません 🎉</div>';
+        return;
+      }
+      const addHead = (text) => {
+        const h = document.createElement("div");
+        h.className = "meta"; h.style.margin = "10px 0 6px"; h.style.fontWeight = "700";
+        h.textContent = text; box.appendChild(h);
+      };
+      if (r.pending.length) {
+        addHead("💰 未対応 " + r.pending.length + "件");
+        r.pending.forEach((p) => {
+          const div = document.createElement("div");
+          div.className = "slot-row";
+          div.innerHTML =
+            '<div class="title">' + esc(p.nickname || "(名前なし)") +
+            (p.date ? '<span class="pill">' + fmtDate(p.date) + " " + esc(p.time) + '</span>' : '') +
+            (p.amount ? '<span class="pill">' + esc(Number(p.amount).toLocaleString("ja-JP")) + '円</span>' : '') +
+            (p.reason ? '<span class="pill warnp">' + esc(p.reason) + '</span>' : '') + '</div>' +
+            (p.error ? '<div class="meta ng">⚠️ 返金に失敗：' + esc(p.error) + '</div>' : '') +
+            (!p.sessionId ? '<div class="meta">決済導入前の予約（Stripeの支払いなし）</div>' : '') +
+            '<div class="meta">' + esc(p.lineUserId || "") + '</div>';
+          if (p.sessionId) {
+            const s = document.createElement("button");
+            s.className = "sub-btn warn"; s.textContent = "💳 Stripeで返金";
+            s.onclick = async () => {
+              const yes = await dangerConfirm({
+                title: "Stripeで全額返金",
+                body: "この支払いを全額返金します。取り消せません。",
+                target: (p.nickname || "(名前なし)") + "　" + (p.amount ? Number(p.amount).toLocaleString("ja-JP") + "円" : ""),
+                confirmText: "返金する"
+              });
+              if (!yes) return;
+              s.disabled = true;
+              const rr = await api("refundByAdmin", { sessionId: p.sessionId });
+              if (rr.ok) loadRefunds(); else { s.disabled = false; alert("⚠️ " + (rr.error || "失敗")); }
+            };
+            div.appendChild(s);
+          }
+          const b = document.createElement("button");
+          b.className = "sub-btn"; b.textContent = "✅ 対応済みにする";
+          b.onclick = async () => {
+            b.disabled = true;
+            const rr = await api("markRefunded", { lineUserId: p.lineUserId || "", slotId: p.slotId || "", sessionId: p.sessionId || "" });
+            if (rr.ok) loadRefunds(); else { b.disabled = false; alert("⚠️ " + (rr.error || "失敗")); }
+          };
+          div.appendChild(b);
+          box.appendChild(div);
+        });
+      }
+      if (r.done.length) {
+        addHead("✓ 対応済み " + r.done.length + "件");
+        r.done.forEach((p) => {
+          const div = document.createElement("div");
+          div.className = "slot-row"; div.style.opacity = ".65";
+          const at = p.refundedAt ? new Date(p.refundedAt) : null;
+          const atLabel = at ? (at.getMonth() + 1) + "/" + at.getDate() + " " +
+            at.getHours() + ":" + String(at.getMinutes()).padStart(2, "0") : "";
+          div.innerHTML =
+            '<div class="title">✓ ' + esc(p.nickname || "(名前なし)") +
+            (p.date ? '<span class="pill">' + fmtDate(p.date) + " " + esc(p.time) + '</span>' : '') +
+            (p.amount ? '<span class="pill">' + esc(Number(p.amount).toLocaleString("ja-JP")) + '円</span>' : '') +
+            (p.reason ? '<span class="pill">' + esc(p.reason) + '</span>' : '') + '</div>' +
+            (atLabel ? '<div class="meta">' + (p.sessionId ? "返金日時: " : "対応日時: ") + atLabel + '</div>' : "");
+          // Stripeで返金したものはお金が戻っているので「未対応に戻す」は出さない
+          if (p.sessionId) { box.appendChild(div); return; }
+          const b = document.createElement("button");
+          b.className = "sub-btn"; b.textContent = "未対応に戻す";
+          b.onclick = async () => {
+            b.disabled = true;
+            const rr = await api("markRefunded", { lineUserId: p.lineUserId, slotId: p.slotId, undo: "1" });
+            if (rr.ok) loadRefunds(); else { b.disabled = false; alert("⚠️ " + (rr.error || "失敗")); }
+          };
+          div.appendChild(b);
+          box.appendChild(div);
+        });
+      }
+    }
+    $("reloadRefunds").addEventListener("click", loadRefunds);
+
+    // ----- ⑨ ユーザー検索 -----
+    // プロフィールの「いちばん伸ばしたいチカラ」（アプリの POWER_META と同じ）
+    const PROFILE_POWER = { save: "💰貯める", earn: "💪稼ぐ", grow: "📈増やす", protect: "🛡守る", use: "🎁使う" };
+    async function searchUsers() {
+      const q = $("usQuery").value.trim();
+      if (!q) { set("usStatus", "ニックネーム か LINEユーザーIDを入力してください", "ng"); return; }
+      set("usStatus", "検索中…", "");
+      $("usResults").innerHTML = "";
+      const r = await api("searchUser", { query: q });
+      if (!r.ok) { set("usStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      if (!r.users.length) { set("usStatus", "該当するユーザーが見つかりません", ""); return; }
+      set("usStatus", r.users.length + "人見つかりました", "ok");
+      const box = $("usResults");
+      r.users.forEach((u) => {
+        const div = document.createElement("div");
+        div.className = "slot-row";
+        const resvHtml = (u.reservations || []).map((v) =>
+          '<div class="meta">📅 ' + fmtDate(v.date) + " " + esc(v.time) +
+          (v.groupName
+            ? "　🐣 " + esc(v.groupName)
+            : (v.unmatched ? "　😢 不成立" : "　（グループ未発表）")) +
+          (v.minor === "invited" ? "　👧18歳未満（保護者：" + esc(v.guardianNickname || "") + "さん）" : "") +
+          (v.minor === "borrowed" ? "　👧18歳未満（保護者のスマホで参加：" + esc(v.participantNickname || "") + "）" : "") +
+          (v.status === "pending" ? "　⏳支払い待ち" : "") +
+          (v.paid ? "　💴" + Number(v.paidAmount || 0).toLocaleString("ja-JP") + "円支払い済み" : "") +
+          (v.couponUsed ? "　🎟クーポン利用" : "") +
+          (v.refunded ? "　↩️返金済み" : "") +
+          (v.checkedIn ? "　✅チェックイン済" : "") +
+          (v.noShow ? "　🚫ノーショー" : "") +
+          (v.refundPending ? "　💰要返金" : "") +
+          '</div>').join("") || '<div class="meta">予約なし</div>';
+        const cpHtml = (u.coupons || []).map((c) =>
+          '<div class="meta">🎟 ' + (c.type === "free" ? "無料" : "¥" + Number(c.amount).toLocaleString()) +
+          "（" + esc(c.reason || "") + "）" +
+          (c.status === "used" ? "・使用済み" : c.status === "held" ? "・支払い待ちの予約で押さえ中" : (c.expired ? "・期限切れ" : "・有効")) +
+          '</div>').join("");
+        div.innerHTML =
+          '<div class="title">' + esc(u.nickname || "(名前なし)") +
+          '<span class="pill">' + esc([u.gender, PROFILE_POWER[u.topic]].filter(Boolean).join("・") || "プロフィール未設定") + '</span></div>' +
+          (u.topicDetail ? '<div class="meta">フェスに来た理由：' + esc(u.topicDetail) + '</div>' : '') +
+          '<div class="meta">' + esc(u.lineUserId) + (u.libeId ? "　／　リベID: " + esc(u.libeId) : "") + '</div>' +
+          resvHtml + cpHtml;
+        box.appendChild(div);
+      });
+    }
+    $("usBtn").addEventListener("click", searchUsers);
+    $("usQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchUsers(); } });
+
+    // ----- 🏰 クエスト設定（姫の救出条件＋ミッションを1画面で編集）-----
+    let questPrincesses = [];
+    let questMissions   = [];
+    let questPowers     = [];
+    let questLoaded  = false;  // タブを開いたときの初回読み込み済みフラグ
+    let questDirty   = false;  // 未保存の変更があるか
+    let missionFilter = "all"; // ミッション一覧の絞り込み（チカラの種類）
+
+    // サーバーから取得できなかった場合の保険（5つのチカラはコード側の定義と同じ順・同じキー）
+    const POWER_FALLBACK = [
+      { key: "save",    emoji: "💰", label: "貯める" },
+      { key: "earn",    emoji: "💪", label: "稼ぐ" },
+      { key: "grow",    emoji: "📈", label: "増やす" },
+      { key: "protect", emoji: "🛡", label: "守る" },
+      { key: "use",     emoji: "🎁", label: "使う" }
+    ];
+    const powerList = () => (questPowers.length ? questPowers : POWER_FALLBACK);
+
+    async function loadQuestSettings() {
+      set("questStatus", "読み込み中…", "");
+      const r = await api("getQuestSettings");
+      if (!r.ok) {
+        set("questStatus", "⚠️ " + esc(r.error || "失敗") + "（「読み込み直す」を押してください）", "ng");
+        return;
+      }
+      questLoaded = true;
+      questDirty  = false;
+      questPrincesses = r.princesses || [];
+      questPowers     = r.powers || [];
+      questMissions   = (r.missions || []).map((m) => ({ id: m.id, name: m.name, power: m.power, stars: m.stars }));
+      questTutorial   = (r.tutorial || []).map((m) => ({ id: m.id, name: m.name, power: m.power, stars: m.stars, kind: m.kind }));
+      renderPrincessEditor();
+      renderTutorialEditor();
+      renderMissionEditor();
+      set("questStatus", "現在の設定を読み込みました" +
+        (r.isCustomMissions ? "（ミッションは編集済みのものが保存されています）" : "（ミッションは既定値のままです）"), "ok");
+    }
+
+    // 変更があったことを記録して保存バーに出す（保存し忘れ防止）
+    function markQuestDirty() {
+      if (!questDirty) { questDirty = true; renderQuestBar(); }
+    }
+    function renderQuestBar() {
+      $("questDirty").textContent = questDirty ? "⚠️ 未保存の変更があります" : "";
+      $("saveAllQuestBtn").textContent = questDirty ? "保存する（未保存）" : "保存する";
+    }
+
+    // 現在のバランス。チカラごとの合計⭐と、最後の姫に届くかを表示する
+    function renderQuestSummary() {
+      const per = {}; powerList().forEach((p) => { per[p.key] = 0; });
+      questTutorial.concat(questMissions).forEach((m) => {
+        if (per[m.power] !== undefined) per[m.power] += (Number(m.stars) || 0);
+      });
+      const total = powerList().reduce((s, p) => s + per[p.key], 0);
+      const tutTotal = questTutorial.reduce((s, m) => s + (Number(m.stars) || 0), 0);
+      const maxNeed = questPrincesses.length
+        ? Math.max(...questPrincesses.map((p) => Number(p.need) || 0)) : 0;
+      // 最初の姫＝チュートリアル完了で救出される想定。ズレていると本編開始と救出がちぐはぐになる
+      const firstNeed = questPrincesses.length
+        ? Math.min(...questPrincesses.map((p) => Number(p.need) || 0)) : 0;
+      let line = "";
+      if (maxNeed) {
+        line = total >= maxNeed
+          ? '<span class="qs-line ok">✅ 全部クリアすれば最後の姫の条件（' + maxNeed + '）に届きます</span>'
+          : '<span class="qs-line ng">⚠️ 全部クリアしても⭐' + total + '。最後の姫の条件（' + maxNeed + '）に届きません</span>';
+      }
+      if (firstNeed && tutTotal !== firstNeed) {
+        line += '<span class="qs-line ng">⚠️ チュートリアルの合計⭐' + tutTotal +
+          ' が最初の姫の条件（' + firstNeed + '）と違います。' +
+          (tutTotal > firstNeed ? '移動する前に救出されてしまいます' : 'チュートリアルを終えても救出されません') + '</span>';
+      }
+      $("questSummary").innerHTML =
+        '<span class="qs-main">チュートリアル ' + questTutorial.length + '件（⭐' + tutTotal + '）／ ' +
+        'ミッション ' + questMissions.length + '件 ／ 満点 ⭐' + total + '</span>' +
+        powerList().map((p) =>
+          '<span class="qs-p' + (per[p.key] ? '' : ' zero') + '">' +
+          esc(p.emoji) + esc(p.label) + ' ' + per[p.key] + '</span>').join("") +
+        line;
+    }
+
+    // ----- 姫の救出条件（1人1行）-----
+    function renderPrincessEditor() {
+      const box = $("questPrincessList"); box.innerHTML = "";
+      set("questPrincessMsg", "", "");
+      questPrincesses.forEach((p, i) => {
+        const d = document.createElement("div");
+        d.className = "q-prow";
+        d.innerHTML =
+          '<span class="qp-name">' + esc(p.emoji) + " " + esc(p.name) + '</span>' +
+          '<input type="number" min="1" id="qp_need_' + i + '" value="' + esc(p.need) + '" />' +
+          '<span class="qp-unit">チカラで救出</span>' +
+          '<label class="qp-all"><input type="checkbox" id="qp_all_' + i + '"' +
+          (p.requireAllPowers ? ' checked' : '') + ' />5種すべて1つ以上</label>';
+        box.appendChild(d);
+      });
+      renderQuestSummary();
+    }
+
+    // ----- チュートリアル（4行固定・追加削除なし）-----
+    let questTutorial = [];
+    function renderTutorialEditor() {
+      const box = $("questTutorialList"); box.innerHTML = "";
+      questTutorial.forEach((m, i) => {
+        const d = document.createElement("div");
+        d.className = "q-mrow";
+        d.innerHTML =
+          '<input type="text" class="qm-name" maxlength="60" id="qt_name_' + i + '" value="' + esc(m.name) + '" />' +
+          '<select class="qm-power" id="qt_power_' + i + '">' +
+            powerList().map((p) => '<option value="' + esc(p.key) + '"' +
+              (p.key === m.power ? ' selected' : '') + '>' + esc(p.emoji) + " " + esc(p.label) + '</option>').join("") +
+          '</select>' +
+          '<select class="qm-stars" id="qt_stars_' + i + '">' +
+            [1, 2, 3].map((n) => '<option value="' + n + '"' + (n === m.stars ? ' selected' : '') + '>' +
+              "⭐".repeat(n) + '</option>').join("") +
+          '</select>';
+        box.appendChild(d);
+      });
+      renderQuestSummary();
+    }
+    function syncTutorialInputs() {
+      questTutorial = questTutorial.map((m, i) => ({
+        id:    m.id,
+        kind:  m.kind,
+        name:  ($("qt_name_"  + i) ? $("qt_name_"  + i).value.trim() : m.name),
+        power: ($("qt_power_" + i) ? $("qt_power_" + i).value : m.power),
+        stars: ($("qt_stars_" + i) ? parseInt($("qt_stars_" + i).value, 10) : m.stars)
+      }));
+    }
+    $("questTutorialList").addEventListener("input", markQuestDirty);
+    $("questTutorialList").addEventListener("change", () => { syncTutorialInputs(); markQuestDirty(); renderQuestSummary(); });
+    $("resetTutorialBtn").addEventListener("click", async () => {
+      const ok = await dangerConfirm({
+        title: "チュートリアルを既定に戻す",
+        body: "編集した内容が失われ、コードに定義された既定のチュートリアルに戻ります。ミッションと姫の条件は変わりません。",
+        target: "チュートリアル " + questTutorial.length + "件",
+        confirmText: "既定に戻す"
+      });
+      if (!ok) return;
+      set("questStatus", "戻しています…", "");
+      const r = await api("updateQuestSettings", { tutorial: "default" });
+      if (r.ok) { await loadQuestSettings(); set("questStatus", "✅ チュートリアルを既定に戻しました", "ok"); }
+      else set("questStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
+    });
+
+    // ----- ミッション（チカラで絞り込み・1件1行）-----
+    function renderMissionEditor() {
+      renderMissionFilter();
+      renderMissionList();
+      renderQuestSummary();
+      renderQuestBar();
+    }
+    function renderMissionFilter() {
+      const counts = {};
+      questMissions.forEach((m) => { counts[m.power] = (counts[m.power] || 0) + 1; });
+      const btns = [{ key: "all", emoji: "", label: "すべて", n: questMissions.length }]
+        .concat(powerList().map((p) => ({ key: p.key, emoji: p.emoji, label: p.label, n: counts[p.key] || 0 })));
+      $("missionFilter").innerHTML = btns.map((b) =>
+        '<button class="q-fbtn' + (missionFilter === b.key ? ' active' : '') + '" data-f="' + esc(b.key) + '">' +
+        esc(b.emoji) + esc(b.label) + ' ' + b.n + '</button>').join("");
+    }
+    function renderMissionList() {
+      const ml = $("questMissionList"); ml.innerHTML = "";
+      // 絞り込んでも元の並び順の番号（i）を保つ。入力欄のIDと配列の位置を一致させるため
+      const shown = questMissions.map((m, i) => ({ m: m, i: i }))
+        .filter((x) => missionFilter === "all" || x.m.power === missionFilter);
+      if (!shown.length) {
+        ml.innerHTML = '<div class="q-empty">' + (questMissions.length
+          ? "この種類のミッションはまだありません"
+          : "ミッションがありません。「＋ ミッションを追加」で作成してください") + '</div>';
+        return;
+      }
+      shown.forEach((x) => {
+        const m = x.m, i = x.i;
+        const d = document.createElement("div");
+        d.className = "q-mrow";
+        d.innerHTML =
+          '<input type="text" class="qm-name" maxlength="60" placeholder="ミッション名" ' +
+            'id="qm_name_' + i + '" value="' + esc(m.name) + '" />' +
+          '<select class="qm-power" id="qm_power_' + i + '">' +
+            powerList().map((p) => '<option value="' + esc(p.key) + '"' +
+              (p.key === m.power ? ' selected' : '') + '>' + esc(p.emoji) + " " + esc(p.label) + '</option>').join("") +
+          '</select>' +
+          '<select class="qm-stars" id="qm_stars_' + i + '">' +
+            [1, 2, 3].map((n) => '<option value="' + n + '"' + (n === m.stars ? ' selected' : '') + '>' +
+              "⭐".repeat(n) + '</option>').join("") +
+          '</select>' +
+          '<button class="qm-del" data-i="' + i + '" title="この行を削除">✕</button>';
+        ml.appendChild(d);
+      });
+    }
+    // 画面の入力値を配列へ取り込む（追加・削除・絞り込み・保存の前に必ず呼ぶ）
+    // 絞り込みで表示されていない行は入力欄が無いので、元の値をそのまま残す
+    function syncMissionInputs() {
+      questMissions = questMissions.map((m, i) => ({
+        id:    m.id,
+        name:  ($("qm_name_"  + i) ? $("qm_name_"  + i).value.trim() : m.name),
+        power: ($("qm_power_" + i) ? $("qm_power_" + i).value : m.power),
+        stars: ($("qm_stars_" + i) ? parseInt($("qm_stars_" + i).value, 10) : m.stars)
+      }));
+    }
+
+    // 絞り込みボタン
+    $("missionFilter").addEventListener("click", (e) => {
+      const b = e.target.closest(".q-fbtn"); if (!b) return;
+      syncMissionInputs();
+      missionFilter = b.dataset.f;
+      renderMissionEditor();
+    });
+    // 行の削除・入力の変更
+    $("questMissionList").addEventListener("click", (e) => {
+      const b = e.target.closest(".qm-del"); if (!b) return;
+      syncMissionInputs();
+      questMissions.splice(parseInt(b.dataset.i, 10), 1);
+      markQuestDirty();
+      renderMissionEditor();
+    });
+    $("questMissionList").addEventListener("input", markQuestDirty);
+    $("questMissionList").addEventListener("change", () => { syncMissionInputs(); markQuestDirty(); renderMissionEditor(); });
+    $("questPrincessList").addEventListener("input", markQuestDirty);
+    $("questPrincessList").addEventListener("input", () => set("questPrincessMsg", "", "")); // 直し始めたら消す
+    $("questPrincessList").addEventListener("change", markQuestDirty);
+
+    $("addMissionBtn").addEventListener("click", () => {
+      syncMissionInputs();
+      const power = (missionFilter === "all") ? powerList()[0].key : missionFilter;
+      questMissions.push({ id: "", name: "", power: power, stars: 1 });
+      markQuestDirty();
+      renderMissionEditor();
+      const el = $("qm_name_" + (questMissions.length - 1));
+      if (el) { el.focus(); el.scrollIntoView({ block: "center" }); }
+      set("questStatus", "行を追加しました。名前を入力して「保存する」を押してください", "");
+    });
+
+    // 姫の条件とミッションをまとめて保存する（保存し忘れ・押し間違いを防ぐため1ボタン）
+    $("saveAllQuestBtn").addEventListener("click", async () => {
+      if (!questLoaded) { set("questStatus", "先に「読み込み直す」で設定を読み込んでください", "ng"); return; }
+      syncMissionInputs();
+      syncTutorialInputs();
+      const badTut = questTutorial.findIndex((m) => !m.name);
+      if (badTut >= 0) { set("questStatus", "チュートリアル" + (badTut + 1) + "件目の名前が空です", "ng"); return; }
+      const noDest = questTutorial.find((m) => m.kind === "move" && !m.name.includes("{destination}"));
+      if (noDest) { set("questStatus", "移動のミッション名には {destination} を残してください", "ng"); return; }
+      const princesses = questPrincesses.map((p, i) => ({
+        id: p.id,
+        need: ($("qp_need_" + i) ? parseInt($("qp_need_" + i).value, 10) : p.need),
+        requireAllPowers: ($("qp_all_" + i) ? $("qp_all_" + i).checked : !!p.requireAllPowers)
+      }));
+      if (princesses.some((p) => !Number.isFinite(p.need) || p.need < 1)) {
+        set("questStatus", "姫の「必要なチカラ」は1以上の数値で入力してください", "ng"); return;
+      }
+      // 前の姫より大きい数でないと保存しない（同じ数も不可。サーバー側でも同じ確認をしている）
+      set("questPrincessMsg", "", "");
+      for (let i = 1; i < princesses.length; i++) {
+        if (princesses[i].need <= princesses[i - 1].need) {
+          const msg = questPrincesses[i].name + "の必要チカラ（" + princesses[i].need + "）は、前の" +
+            questPrincesses[i - 1].name + "（" + princesses[i - 1].need + "）より大きい数にしてください";
+          // 入力欄の位置まで画面が戻るので、下の保存ボタン横だけでなく姫の欄の下にも出す
+          set("questPrincessMsg", "⚠️ " + msg, "ng");
+          set("questStatus", msg, "ng");
+          const el = $("qp_need_" + i); if (el) { el.focus(); el.scrollIntoView({ block: "center" }); }
+          return;
+        }
+      }
+      if (!questMissions.length) { set("questStatus", "ミッションは1つ以上必要です", "ng"); return; }
+      const empty = questMissions.findIndex((m) => !m.name);
+      if (empty >= 0) {
+        missionFilter = "all"; renderMissionEditor();
+        const el = $("qm_name_" + empty); if (el) { el.focus(); el.scrollIntoView({ block: "center" }); }
+        set("questStatus", (empty + 1) + "件目のミッション名が空です", "ng"); return;
+      }
+      set("questStatus", "保存中…", "");
+      const r = await api("updateQuestSettings", {
+        princesses: JSON.stringify(princesses),
+        missions:   JSON.stringify(questMissions),
+        tutorial:   JSON.stringify(questTutorial)
+      });
+      if (r.ok) {
+        await loadQuestSettings();
+        set("questStatus", "✅ 保存しました（姫の条件はすぐ反映／ミッションは次にマッチングした枠から反映）", "ok");
+      } else set("questStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
+      renderQuestBar();
+    });
+
+    $("resetMissionBtn").addEventListener("click", async () => {
+      const ok = await dangerConfirm({
+        title: "ミッションを既定に戻す",
+        body: "編集した内容が失われ、コードに定義された既定のミッション一覧に戻ります。姫の条件は変わりません。",
+        target: "ミッション " + questMissions.length + "件",
+        confirmText: "既定に戻す"
+      });
+      if (!ok) return;
+      set("questStatus", "戻しています…", "");
+      // "default" を送ると保存済みの編集内容が消え、コードの既定ミッションに戻る
+      const r = await api("updateQuestSettings", { missions: "default" });
+      if (r.ok) { await loadQuestSettings(); set("questStatus", "✅ 既定に戻しました", "ok"); }
+      else set("questStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
+    });
+
+    $("reloadQuestBtn").addEventListener("click", async () => {
+      if (questDirty && !confirm("未保存の変更があります。破棄して読み込み直しますか？")) return;
+      await loadQuestSettings();
+    });
+
+    // 未保存のままページを閉じようとしたら引き止める
+    window.addEventListener("beforeunload", (e) => {
+      if (questDirty) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    // 起動：保存済みキーがあればパネル表示
+    if (getKey()) showPanel(); else $("loginWrap").classList.remove("hidden");
+  </script>
+</body>
+</html>
