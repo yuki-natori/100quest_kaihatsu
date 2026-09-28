@@ -86,7 +86,7 @@
       border-radius:99px; padding:1px 7px; }
     .back-link { background:none; border:none; color:var(--green); font-size:14px; font-weight:700;
       cursor:pointer; padding:4px 0; margin-bottom:14px; }
-    /* 今やることバナー（状態に応じてマイグループ上部に表示） */
+    /* 今やることバナー（状態に応じてパーティ画面の上部に表示） */
     .action-banner { background:#fff; border:2px solid var(--green); border-radius:var(--radius);
       padding:14px 16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(47,109,79,.12); }
     .action-banner .ab-label { font-size:11px; font-weight:700; color:var(--sub); margin-bottom:2px; }
@@ -100,10 +100,6 @@
     .growth-timer .gt-note { font-size:10.5px; font-weight:500; color:var(--sub); }
     .screen-title { font-size:18px; font-weight:800; color:var(--green); margin-bottom:16px; }
     /* 時間帯タブ（複数予約の切り替え）*/
-    .band-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-    .band-tab { padding:8px 14px; border-radius:99px; border:1.5px solid #d9d4c6; background:#fff;
-      font-size:13px; font-weight:700; color:var(--sub); cursor:pointer; }
-    .band-tab.active { background:var(--green); color:#fff; border-color:var(--green); }
     /* 予約リスト（予約画面）*/
     .resv-item { display:flex; justify-content:space-between; align-items:center; background:#fff;
       border:1px solid #ece8dc; border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
@@ -189,12 +185,58 @@
     .q-next.done .qn-main { color:var(--green); }
     /* 救出した姫 */
     .q-princess-title { font-size:12px; font-weight:700; color:var(--sub); margin:14px 0 6px; text-align:center; }
-    .q-princesses { display:flex; justify-content:center; gap:10px; }
+    .q-princesses { display:flex; justify-content:center; gap:10px; margin-bottom:16px; }
     .q-p { text-align:center; flex:0 0 auto; width:60px; }
     .q-p .qp-face { font-size:34px; line-height:1.2; filter:grayscale(1) opacity(.35); transition:filter .4s ease; }
     .q-p.got .qp-face { filter:none; }
     .q-p .qp-name { font-size:10px; color:var(--sub); margin-top:2px; }
     .q-p.got .qp-name { color:var(--green); font-weight:700; }
+    /* 進行タブ：救出した姫たちの庭（以前のたまごっち画面を流用） */
+    .terrarium { position:relative; height:200px; margin:-16px -16px 12px; border-radius:var(--radius) var(--radius) 0 0;
+      background:linear-gradient(#bfe3ff,#e8f6ff 70%,#d8f0d0 70%); overflow:hidden; }
+    .cloud { position:absolute; font-size:26px; opacity:.85; animation:drift 14s linear infinite; }
+    .cloud.c1 { top:24px; left:-40px; }
+    .cloud.c2 { top:54px; left:-40px; animation-duration:20s; animation-delay:-7s; font-size:20px; }
+    @keyframes drift { from { transform:translateX(0); } to { transform:translateX(420px); } }
+    .ground { position:absolute; bottom:0; left:0; right:0; height:60px;
+      background:radial-gradient(ellipse at 50% 0,#cbe9bd,#bfe0ad); }
+    .garden { position:absolute; left:0; right:0; bottom:46px; z-index:1; display:flex;
+      justify-content:space-evenly; align-items:flex-end; }
+    .garden .pc { font-size:var(--pc-size,76px); line-height:1; cursor:pointer;
+      animation:pcBounce 1.6s ease-in-out infinite; transform-origin:bottom center; }
+    @keyframes pcBounce {
+      0%,100% { transform:translateY(0) rotate(0deg); }
+      25% { transform:translateY(-12px) rotate(-4deg); }
+      50% { transform:translateY(0) rotate(0deg); }
+      75% { transform:translateY(-6px) rotate(4deg); }
+    }
+    .garden-empty { position:absolute; left:0; right:0; top:84px; z-index:1; text-align:center;
+      font-size:13px; line-height:1.6; color:#5c7a8a; }
+    /* ひとこと（手書き文字がふわっと浮かんで消える） */
+    .cry { position:absolute; left:66%; bottom:128px; z-index:2; transform:translateX(-50%);
+      font-family:"Yomogi",-apple-system,"Hiragino Sans",sans-serif;
+      font-size:24px; font-weight:700; color:var(--green); white-space:nowrap; pointer-events:none;
+      opacity:0; text-shadow:0 2px 0 #fff, 0 0 8px rgba(255,255,255,.95); }
+    .cry.show { animation:cryUp 1.8s ease-out forwards; }
+    @keyframes cryUp {
+      0%   { opacity:0; transform:translateX(-50%) translateY(10px) rotate(-8deg) scale(.7); }
+      20%  { opacity:1; transform:translateX(-50%) translateY(0) rotate(-4deg) scale(1.12); }
+      55%  { opacity:1; transform:translateX(-50%) translateY(-10px) rotate(3deg) scale(1); }
+      100% { opacity:0; transform:translateX(-50%) translateY(-28px) rotate(7deg) scale(.95); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cry.show { animation-duration:.01s; opacity:1; }
+      .garden .pc, .cloud { animation:none; }
+    }
+    /* パーティ画面：予約した時間の一覧 */
+    .pick-item { display:flex; align-items:center; justify-content:space-between; width:100%; text-align:left;
+      background:#fff; border:1.5px solid #e3ddcd; border-radius:12px; padding:14px 16px; margin-bottom:10px;
+      cursor:pointer; font-family:inherit; color:var(--ink); }
+    .pick-item .pk-main { display:flex; flex-direction:column; gap:3px; min-width:0; }
+    .pick-item .pk-time { font-size:16px; font-weight:800; color:var(--green); }
+    .pick-item .pk-state { font-size:12px; color:var(--sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pick-item .pk-go { font-size:22px; color:var(--green); flex-shrink:0; margin-left:8px; }
+    .detail-slot { font-size:15px; font-weight:800; color:var(--green); margin:-4px 0 12px; }
     /* 内訳は小さく1行だけ */
     .q-breakdown { text-align:center; font-size:12px; color:var(--sub); margin-top:12px;
       padding-top:10px; border-top:1px solid #f0ece1; }
@@ -302,10 +344,10 @@
     .resv-party { flex:1 0 100%; order:2; font-size:12px; color:var(--green);
       font-weight:700; line-height:1.6; margin-top:5px; }
     .resv-party .rp-code { background:#eaf6ef; border-radius:6px; padding:1px 7px; letter-spacing:.1em; }
-    /* ===== ミッション／パーティ の表示切替（チュートリアル後）===== */
+    /* ===== ミッション／パーティ／進行 の表示切替 ===== */
     .view-tabs { display:flex; gap:8px; margin:0 0 12px; }
-    .vtab { flex:1; padding:11px 8px; border-radius:10px; border:1.5px solid #d9d4c6; background:#fff;
-      font-size:14px; font-weight:800; color:var(--sub); cursor:pointer; line-height:1.35; }
+    .vtab { flex:1; min-width:0; padding:10px 4px; border-radius:10px; border:1.5px solid #d9d4c6; background:#fff;
+      font-size:13.5px; font-weight:800; color:var(--sub); cursor:pointer; line-height:1.35; }
     .vtab.active { background:var(--green); color:#fff; border-color:var(--green); }
     .vtab small { display:block; font-size:11px; font-weight:500; opacity:.8; margin-top:1px; }
     /* ===== チュートリアル ===== */
@@ -515,7 +557,7 @@
       <button class="link-btn" id="editBtn">編集</button>
     </div>
     <div class="menu-grid">
-      <button class="menu-card" id="menuGroup"><span class="mi">🐣</span>マイグループ<small id="menuGroupSub">育成・集合場所</small></button>
+      <button class="menu-card" id="menuGroup"><span class="mi">⚔️</span>パーティ<small id="menuGroupSub">ミッション・進行</small></button>
       <button class="menu-card" id="menuReserve"><span class="mi">📅</span>予約<small id="menuReserveSub">日時を選ぶ</small></button>
       <button class="menu-card" id="menuCoupon"><span class="mi">🎟</span>クーポン<small id="menuCouponSub">&nbsp;</small></button>
       <button class="menu-card" id="menuMap"><span class="mi">🗺</span>会場マップ<small>近日公開</small></button>
@@ -524,82 +566,102 @@
     </div>
   </div>
 
-  <!-- マイグループ画面 -->
+  <!-- パーティ画面：①予約した時間を選ぶ → ②パーティ・ミッション・進行 -->
   <div class="wrap hidden" id="screen-group">
-    <button class="back-link" data-back>← メニューに戻る</button>
-
-    <!-- 予約した時間帯の切り替え（複数予約のとき表示）-->
-    <div class="band-tabs hidden" id="bandTabs"></div>
-
-    <!-- 今やることバナー（状態に応じて表示） -->
-    <div class="action-banner hidden" id="actionBanner"></div>
-
-    <!-- 予約なしの案内 -->
-    <div class="placeholder hidden" id="noReserveBox">
-      まだ予約がありません。<br>メニューの「📅 予約」から参加日時を選んでね。
+    <!-- ① 予約した時間の選択 -->
+    <div id="groupPick">
+      <button class="back-link" data-back>← メニューに戻る</button>
+      <div class="screen-title">⚔️ パーティ</div>
+      <div class="section-title" id="pickLead">予約した時間を選んでね</div>
+      <div id="pickList"></div>
+      <!-- 予約なしの案内 -->
+      <div class="placeholder hidden" id="noReserveBox">
+        まだ予約がありません。<br>メニューの「📅 予約」から参加日時を選んでね。
+      </div>
     </div>
 
-    <!-- チュートリアル後の表示切替（ミッション／パーティ）。それまでは両方まとめて表示 -->
-    <div class="view-tabs hidden" id="viewTabs"></div>
+    <!-- ② 選んだ時間のパーティ -->
+    <div class="hidden" id="groupDetail">
+      <button class="back-link" id="backToPick">← 予約した時間の選択に戻る</button>
+      <div class="detail-slot" id="detailSlot"></div>
 
-    <!-- マッチング後：グループ発表 -->
-    <div class="group-box hidden" id="groupBox">
-      <div class="lead" id="groupLead">🎉 あなたのパーティが決まりました</div>
-      <div class="gname" id="groupName">—</div>
-      <div class="gsub" id="groupSlot"></div>
-      <div class="group-members" id="groupMembers"></div>
-      <div class="checkin-status" id="checkinStatus"></div>
-    </div>
+      <!-- 今やることバナー（状態に応じて表示） -->
+      <div class="action-banner hidden" id="actionBanner"></div>
 
-    <!-- ⑩ クエスト（チカラ＋姫の救出） -->
-    <div class="quest-box hidden" id="questBox">
-      <div class="q-party" id="qParty">—<small id="qPartySub"></small></div>
+      <!-- ミッション／パーティ／進行 の切り替え -->
+      <div class="view-tabs hidden" id="viewTabs"></div>
 
-      <!-- ⑫チュートリアル：救出前のペンペン姫はシルエットで声だけ -->
-      <div class="tut-box hidden" id="tutBox">
-        <div class="tut-head">
-          <div class="tut-face" id="tutFace">🐧</div>
-          <div class="tut-voice" id="tutVoice"></div>
+      <!-- 👥 パーティ：グループ発表・メンバー・到着状況 -->
+      <div class="group-box hidden" id="groupBox">
+        <div class="lead" id="groupLead">🎉 あなたのパーティが決まりました</div>
+        <div class="gname" id="groupName">—</div>
+        <div class="gsub" id="groupSlot"></div>
+        <div class="group-members" id="groupMembers"></div>
+        <div class="checkin-status" id="checkinStatus"></div>
+      </div>
+
+      <!-- ⑩ クエスト（ミッションと進行の2枚。表示はタブで切り替える） -->
+      <div class="hidden" id="questBox">
+        <!-- 🏰 ミッション -->
+        <div class="quest-box" id="missionPane">
+          <div class="q-party" id="qParty">—<small id="qPartySub"></small></div>
+
+          <!-- ⑫チュートリアル：救出前のペンペン姫はシルエットで声だけ -->
+          <div class="tut-box hidden" id="tutBox">
+            <div class="tut-head">
+              <div class="tut-face" id="tutFace">🐧</div>
+              <div class="tut-voice" id="tutVoice"></div>
+            </div>
+            <div class="tut-step" id="tutStep"></div>
+          </div>
+
+          <div class="missions">
+            <div class="missions-title" id="missionsTitle">ミッション（パーティ全員のチェックでクリア）</div>
+            <div class="m-tabs" id="missionTabs"></div>
+            <div id="missionList"></div>
+          </div>
         </div>
-        <div class="tut-step" id="tutStep"></div>
+
+        <!-- 🌱 進行：いまの状況と、救出した姫たちの様子 -->
+        <div class="quest-box" id="progressPane">
+          <!-- 救出した姫たちの庭（イラストができたら差し替える） -->
+          <div class="terrarium" id="terrarium">
+            <div class="cloud c1">☁️</div><div class="cloud c2">☁️</div>
+            <div class="cry" id="princessCry"></div>
+            <div class="garden" id="princessGarden"></div>
+            <div class="garden-empty hidden" id="gardenEmpty">まだ誰も救出していません…<br>ミッションでチカラを集めよう</div>
+            <div class="ground"></div>
+          </div>
+          <div class="q-princesses" id="qPrincesses"></div>
+
+          <!-- メインゲージ（1本だけ） -->
+          <div class="q-gauge-label">集めたチカラ</div>
+          <div class="gauge"><div class="gauge-fill" id="qGauge"></div></div>
+          <div class="q-gauge-num" id="qGaugeNum">0</div>
+
+          <!-- 「あと◯で△姫を救出！」＝最も目立たせる -->
+          <div class="q-next" id="qNext"></div>
+
+          <!-- 内訳は小さく1行 -->
+          <div class="q-breakdown" id="qBreakdown"></div>
+
+          <div class="growth-timer hidden" id="growthTimer"></div>
+          <button class="share-btn hidden" id="shareBtn">🎉 結果カードを見る</button>
+        </div>
       </div>
 
-      <!-- メインゲージ（1本だけ） -->
-      <div class="q-gauge-label">集めたチカラ</div>
-      <div class="gauge"><div class="gauge-fill" id="qGauge"></div></div>
-      <div class="q-gauge-num" id="qGaugeNum">0</div>
-
-      <!-- 「あと◯で△姫を救出！」＝最も目立たせる -->
-      <div class="q-next" id="qNext"></div>
-
-      <!-- 救出した姫 -->
-      <div class="q-princess-title">救出した姫</div>
-      <div class="q-princesses" id="qPrincesses"></div>
-
-      <!-- 内訳は小さく1行 -->
-      <div class="q-breakdown" id="qBreakdown"></div>
-
-      <div class="growth-timer hidden" id="growthTimer"></div>
-
-      <div class="missions">
-        <div class="missions-title" id="missionsTitle">ミッション（パーティ全員のチェックでクリア）</div>
-        <div class="m-tabs" id="missionTabs"></div>
-        <div id="missionList"></div>
+      <!-- マッチング不成立の案内 -->
+      <div class="unmatched-box hidden" id="unmatchedBox">
+        <div class="um-title">😢 今回はパーティが成立しませんでした</div>
+        <div class="um-text">人数が集まらず、パーティを作れませんでした。<br>おわびにクーポンをお送りしました。次回ぜひご参加ください。</div>
       </div>
-      <button class="share-btn hidden" id="shareBtn">🎉 結果カードを見る</button>
-    </div>
 
-    <!-- マッチング不成立の案内 -->
-    <div class="unmatched-box hidden" id="unmatchedBox">
-      <div class="um-title">😢 今回はグループが成立しませんでした</div>
-      <div class="um-text">人数が集まらず、グループを作れませんでした。<br>おわびにクーポンをお送りしました。次回ぜひご参加ください。</div>
+      <!-- パーティ発表前 -->
+      <div class="placeholder hidden" id="groupPlaceholder">
+        まだパーティは発表されていません。<br>当日のお楽しみに 🐣
+      </div>
+      <div class="status" id="groupStatus"></div>
     </div>
-
-    <!-- グループ発表前 -->
-    <div class="placeholder hidden" id="groupPlaceholder">
-      まだグループは発表されていません。<br>当日のお楽しみに 🐣
-    </div>
-    <div class="status" id="groupStatus"></div>
   </div>
 
   <!-- 予約画面 -->
@@ -985,7 +1047,7 @@
         openRegister(false); // 新規登録
         if (pendingInviteCode) $("regSub").textContent = "招待を受けるには、まずあなたのプロフィールを登録してね";
       } else if (mode === "checkin" && checkinSlot) {
-        await openGroup(checkinSlot); // チェックインリンク → その枠のマイグループへ
+        await openGroup(checkinSlot); // チェックインリンク → その枠のパーティへ
       } else if (mode === "invite" && qp.get("code")) {
         await openInviteAccept(qp.get("code")); // 保護者からの招待リンク
       } else if (mode === "paid" && qp.get("slot")) {
@@ -1070,7 +1132,7 @@
       const anyGroup = resvs.some((r) => r.groupName);
       const anyUnmatched = resvs.some((r) => r.unmatched);
       $("menuGroupSub").textContent = !resvs.length ? "予約してね"
-        : anyGroup ? "グループ発表中！" : anyUnmatched ? "今回は不成立" : "発表前";
+        : anyGroup ? "パーティ発表中！" : anyUnmatched ? "今回は不成立" : "発表前";
       const cn = (myCoupons.coupons || []).length;
       $("menuCouponSub").innerHTML = cn ? '<span class="badge">' + cn + '枚</span>' : "なし";
       showScreen("screen-menu");
@@ -1089,48 +1151,62 @@
     $("menuContact").addEventListener("click", () => openExternal("https://line.me/R/ti/p/@534oibuu"));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", openMenu));
 
-    // ===== マイグループ画面（複数予約対応）=====
+    // ===== パーティ画面：①予約した時間を選ぶ → ②その時間のパーティ =====
     let currentGroupSlotId = null;
     let myReservationsCache = [];
 
+    // preferredSlotId があれば（チェックインリンクなど）その時間のパーティを直接開く
     async function openGroup(preferredSlotId) {
       setStatus("groupStatus", "", "");
       const mine = await api("getMyReservation", { lineUserId: profile.userId });
       myReservationsCache = mine.reservations || [];
       showScreen("screen-group");
-      if (!myReservationsCache.length) {
-        // 予約なし
-        ["groupBox","questBox","unmatchedBox","groupPlaceholder"].forEach((id) => $(id).classList.add("hidden"));
-        $("bandTabs").classList.add("hidden");
-        $("noReserveBox").classList.remove("hidden");
-        return;
-      }
-      $("noReserveBox").classList.add("hidden");
-      // 表示する枠を決定（指定があればそれ、なければ先頭）
-      const exists = myReservationsCache.some((r) => r.slotId === preferredSlotId);
-      currentGroupSlotId = exists ? preferredSlotId : myReservationsCache[0].slotId;
-      renderBandTabs();
-      await renderGroupDetail(currentGroupSlotId);
+      const target = typeof preferredSlotId === "string"
+        && myReservationsCache.find((r) => r.slotId === preferredSlotId);
+      if (target) { await openGroupDetail(target.slotId); return; }
+      showGroupPick();
     }
 
-    // 予約した時間帯のタブ（2件以上で表示）
-    function renderBandTabs() {
-      const tabs = $("bandTabs");
-      if (myReservationsCache.length <= 1) { tabs.classList.add("hidden"); tabs.innerHTML = ""; return; }
-      tabs.classList.remove("hidden");
-      tabs.innerHTML = "";
+    // ① 予約した時間の一覧
+    function showGroupPick() {
+      stopGroupPoll(); stopTick(); stopPrincessCry();
+      currentGroupSlotId = null;
+      $("groupDetail").classList.add("hidden");
+      $("groupPick").classList.remove("hidden");
+      const list = $("pickList");
+      list.innerHTML = "";
+      $("noReserveBox").classList.toggle("hidden", myReservationsCache.length > 0);
+      $("pickLead").classList.toggle("hidden", !myReservationsCache.length);
       myReservationsCache.forEach((r) => {
+        const state = r.unmatched ? "今回は不成立"
+          : r.groupName ? (r.checkedIn ? "✅ チェックイン済み・" : "🎉 発表済み・") + r.groupName
+          : r.status === "pending" ? "お支払い待ち"
+          : "パーティ発表前";
         const b = document.createElement("button");
-        b.className = "band-tab" + (r.slotId === currentGroupSlotId ? " active" : "");
-        b.textContent = formatSlot(r.date, r.time);
-        b.onclick = async () => {
-          currentGroupSlotId = r.slotId;
-          clearedSeen = null; // 別のパーティに切り替えたら「今クリアした」判定をやり直す
-          groupView = "quest";
-          renderBandTabs(); await renderGroupDetail(r.slotId);
-        };
-        tabs.appendChild(b);
+        b.className = "pick-item";
+        b.innerHTML = '<span class="pk-main"><span class="pk-time">' + esc(formatSlot(r.date, r.time)) + '</span>'
+          + '<span class="pk-state">' + esc(state) + '</span></span><span class="pk-go">›</span>';
+        b.onclick = () => openGroupDetail(r.slotId);
+        list.appendChild(b);
       });
+      window.scrollTo(0, 0);
+    }
+    $("backToPick").addEventListener("click", showGroupPick);
+
+    // ② 選んだ時間のパーティ（ミッション／パーティ／進行）
+    async function openGroupDetail(slotId) {
+      const r = myReservationsCache.find((x) => x.slotId === slotId);
+      currentGroupSlotId = slotId;
+      clearedSeen = null;         // 別のパーティに切り替えたら「今クリアした」判定をやり直す
+      groupView = null;           // タブは状況に合わせて選び直す（applyGroupView）
+      rescueInitialized = false;  // 救出演出の記録は時間ごと
+      rescueQueue = [];
+      gardenKey = "";
+      $("groupPick").classList.add("hidden");
+      $("groupDetail").classList.remove("hidden");
+      $("detailSlot").textContent = r ? formatSlot(r.date, r.time) : "";
+      window.scrollTo(0, 0);
+      await renderGroupDetail(slotId);
     }
 
     async function renderGroupDetail(slotId) {
@@ -1228,10 +1304,8 @@
           } else {
             html = '<div class="ab-title">' + n.emoji + esc(n.name) + 'を救出できる！</div>';
           }
-        } else if (questData) {
-          html = '<div class="ab-title">🎉 4人の姫を全員救出！</div>'
-            + '<div class="ab-sub">集めたチカラ ' + questData.totalPower + '</div>';
         }
+        // 全員救出したあとはバナーを出さない（進行タブに同じ表示があり、重なるため）
       }
 
       if (!html) { box.classList.add("hidden"); return; }
@@ -1266,7 +1340,7 @@
     }
     async function refreshGroupQuiet() {
       // 画面を離れた・不成立・終了済みなら止める
-      if ($("screen-group").classList.contains("hidden")) { stopGroupPoll(); return; }
+      if ($("screen-group").classList.contains("hidden") || $("groupDetail").classList.contains("hidden")) { stopGroupPoll(); return; }
       const g = currentGroup;
       if (!g || g.status === "failed") { stopGroupPoll(); return; }
       const endMs = g.endsAt ? Date.parse(g.endsAt) : null;
@@ -1791,30 +1865,37 @@
       applyGroupView();
     }
 
-    // ----- ミッション／パーティ の表示切替 -----
-    // チュートリアルが終わるまでは両方まとめて表示（誰が来ているかを見たい時間帯なので）。
-    // 本編に入ったらタブで分ける＝メンバー一覧が常に画面を占領しないように。
-    let groupView = "quest";
+    // ----- ミッション／パーティ／進行 の表示切替 -----
+    // パーティが決まったら3つのタブで分ける。最初に開くタブは状況で選ぶ
+    //   開始前（集合・到着待ち）→ パーティ ／ 開始後 → ミッション
+    let groupView = null; // "mission" | "party" | "progress"
     function applyGroupView() {
-      const split = !!(currentGroup && questData && questData.phase === "main");
+      const split = !!(currentGroup && questData);
       $("viewTabs").classList.toggle("hidden", !split);
-      if (split) {
-        $("questBox").classList.toggle("hidden", groupView !== "quest");
-        $("groupBox").classList.toggle("hidden", groupView !== "party");
-        renderViewTabs();
-      } else {
+      if (!split) {
         $("groupBox").classList.toggle("hidden", !currentGroup);
-        $("questBox").classList.toggle("hidden", !questData);
+        $("questBox").classList.add("hidden");
+        return;
       }
+      if (!groupView) groupView = currentGroup.status === "waiting" ? "party" : "mission";
+      $("groupBox").classList.toggle("hidden", groupView !== "party");
+      $("questBox").classList.toggle("hidden", groupView === "party");
+      $("missionPane").classList.toggle("hidden", groupView !== "mission");
+      $("progressPane").classList.toggle("hidden", groupView !== "progress");
+      if (groupView === "progress") startPrincessCry(); else stopPrincessCry();
+      renderViewTabs();
     }
     function renderViewTabs() {
       const left = (questData.missions || []).filter((m) => !m.cleared).length;
-      const tabs = $("viewTabs");
-      tabs.innerHTML =
-        '<button class="vtab' + (groupView === "quest" ? " active" : "") + '" data-view="quest">' +
-          '🏰 ミッション<small>' + (left ? "残り " + left + "件" : "すべてクリア！") + '</small></button>' +
-        '<button class="vtab' + (groupView === "party" ? " active" : "") + '" data-view="party">' +
-          '👥 パーティ<small>' + esc(questData.partyName || "") + '・' + questData.memberTotal + '人</small></button>';
+      const got = (questData.rescued || []).length;
+      const all = (questData.princesses || []).length;
+      const tab = (view, label, sub) =>
+        '<button class="vtab' + (groupView === view ? " active" : "") + '" data-view="' + view + '">'
+        + label + '<small>' + sub + '</small></button>';
+      $("viewTabs").innerHTML =
+        tab("mission", "🏰 ミッション", left ? "残り " + left + "件" : "すべてクリア！") +
+        tab("party", "👥 パーティ", questData.memberTotal + "人") +
+        tab("progress", "🌱 進行", "姫 " + got + "/" + all);
     }
     $("viewTabs").addEventListener("click", (e) => {
       const b = e.target.closest(".vtab"); if (!b) return;
@@ -1884,10 +1965,65 @@
       else renderMissionTabs(q);
       renderMissionList(q);
 
+      renderGarden(q);
+
       $("shareBtn").classList.toggle("hidden", !q.completed);
       startTick(); // 残り時間カウントダウン（未開始なら中で自動停止）
       queueRescues(q); // 新しく救出された姫がいれば演出
     }
+
+    // ----- 進行タブ：救出した姫たちの庭（以前のたまごっち画面を流用。イラストができたら差し替える）-----
+    // 鳴き声（ひとこと）。姫ごとに口ぐせを変える。手書き風の文字でふわっと浮かんで消える
+    const PRINCESS_CRIES = {
+      penpen:  ["ペンッ", "ぺんぺん！", "ぺたぺた"],
+      mairuka: ["キュイッ", "きゅいきゅい", "ぱしゃっ"],
+      pannu:   ["もぐもぐ…", "ふわぁ", "のんびり〜"],
+      amutora: ["ガオッ", "ふふっ", "がんばれ！"]
+    };
+    let gardenKey = "";
+    function renderGarden(q) {
+      const got = (q.princesses || []).filter((p) => p.rescued);
+      const key = got.map((p) => p.id).join(",");
+      if (key === gardenKey) return; // 変化が無ければ作り直さない（弾む動きが途切れないように）
+      gardenKey = key;
+      const garden = $("princessGarden");
+      garden.innerHTML = "";
+      $("gardenEmpty").classList.toggle("hidden", got.length > 0);
+      garden.style.setProperty("--pc-size", (got.length <= 1 ? 76 : got.length === 2 ? 62 : 50) + "px");
+      got.forEach((p, i) => {
+        const el = document.createElement("span");
+        el.className = "pc";
+        el.textContent = p.emoji;
+        el.dataset.id = p.id;
+        el.style.animationDelay = (i * -0.4) + "s"; // みんなで同じ動きにならないようずらす
+        el.addEventListener("click", () => playPrincessCry(el));
+        garden.appendChild(el);
+      });
+    }
+    function playPrincessCry(el) {
+      const box = $("princessCry");
+      const tr = $("terrarium");
+      if (!el || !box || !tr || $("progressPane").classList.contains("hidden")) return;
+      const words = PRINCESS_CRIES[el.dataset.id] || ["♪"];
+      box.textContent = words[Math.floor(Math.random() * words.length)];
+      const r = el.getBoundingClientRect(), t = tr.getBoundingClientRect();
+      box.style.left = Math.min(85, Math.max(15, ((r.left + r.width * 0.75 - t.left) / t.width) * 100)) + "%";
+      box.classList.remove("show");
+      void box.offsetWidth; // リフローを挟んでアニメを確実に頭から再生
+      box.classList.add("show");
+    }
+    // 数秒おきに、救出した姫の誰かがひとこと（多重起動しないようガード）
+    let princessCryInterval = null;
+    function startPrincessCry() {
+      if (princessCryInterval) return;
+      const speak = () => {
+        const list = $("princessGarden").querySelectorAll(".pc");
+        if (list.length && Math.random() < 0.75) playPrincessCry(list[Math.floor(Math.random() * list.length)]);
+      };
+      princessCryInterval = setInterval(speak, 5000);
+      setTimeout(speak, 600); // タブを開いた直後に1回
+    }
+    function stopPrincessCry() { if (princessCryInterval) { clearInterval(princessCryInterval); princessCryInterval = null; } }
 
     // ----- チュートリアル（ペンペン姫の声＋進み具合）-----
     function renderTutorial(q) {
@@ -2028,27 +2164,29 @@
     }
 
     // ----- 姫の救出演出 -----
-    // 端末ごとに「見せた姫」を覚えるので、パーティの誰もが1回ずつ演出を見られる
+    // 端末ごとに「見せた姫」を覚えるので、パーティの誰もが1回ずつ演出を見られる。
+    // アプリを閉じても消えない保存先に置く（閉じている間に救出された姫も、次に開いたときに演出する）
     function rescueMemoryKey() { return "bocchi_rescued_" + (currentGroupSlotId || ""); }
+    // 戻り値：この端末で前に開いたことがあれば true（記録が0人でも「開いた」ことは覚えている）
     function loadShownRescues() {
       shownRescues = new Set();
       try {
-        const raw = sessionStorage.getItem(rescueMemoryKey());
-        if (raw) JSON.parse(raw).forEach((id) => shownRescues.add(id));
-      } catch (e) {}
+        const raw = localStorage.getItem(rescueMemoryKey());
+        if (raw === null) return false;
+        JSON.parse(raw).forEach((id) => shownRescues.add(id));
+        return true;
+      } catch (e) { return false; }
     }
     function saveShownRescues() {
-      try { sessionStorage.setItem(rescueMemoryKey(), JSON.stringify([...shownRescues])); } catch (e) {}
+      try { localStorage.setItem(rescueMemoryKey(), JSON.stringify([...shownRescues])); } catch (e) {}
     }
-    // 初回表示時は「すでに救出済み」を演出せず記録だけする（途中参加や再読込で連発しないように）
+    // この端末で初めて開いたときだけ、すでに救出済みの姫は演出せず記録する（別の端末で途中から開いて連発しないように）
     let rescueInitialized = false;
     function queueRescues(q) {
       const ids = q.rescued || [];
       if (!rescueInitialized) {
         rescueInitialized = true;
-        loadShownRescues();
-        // セッションに記録が無い＝この端末で初めて開いた → 既存分は演出せず既読にする
-        if (!shownRescues.size) { ids.forEach((id) => shownRescues.add(id)); saveShownRescues(); return; }
+        if (!loadShownRescues()) { ids.forEach((id) => shownRescues.add(id)); saveShownRescues(); return; }
       }
       const fresh = ids.filter((id) => !shownRescues.has(id));
       if (!fresh.length) return;
