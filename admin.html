@@ -34,6 +34,13 @@
     .pill.warnp { background:#fdf3e3; color:#b96b00; }
     .pill.errp  { background:#fdf1f0; color:var(--err); font-weight:700; }
     .dl-presets { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+    /* まとめて作成のプレビュー */
+    .b-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .b-table th, .b-table td { padding:5px 8px; border-bottom:1px solid #f0ece1; text-align:left; white-space:nowrap; }
+    .b-table th { position:sticky; top:0; background:#f6f4ec; font-size:12px; color:var(--sub); }
+    .b-table tr.skip td { color:#aaa; text-decoration:line-through; }
+    .b-table tr.skip td.why { text-decoration:none; color:var(--err); }
+    .chip .x { background:none; border:none; color:var(--sub); padding:0 0 0 6px; margin:0; font-size:13px; cursor:pointer; }
     .dl-presets .sub-btn { margin:0; padding:5px 9px; font-size:12px; }
     #login { max-width:360px; margin:80px auto; }
     .hidden { display:none !important; }
@@ -247,6 +254,51 @@
       <button id="createSlotBtn">この枠を作成</button>
       <button id="cancelEditBtn" class="sub-btn hidden">編集をやめる</button>
       <div class="status" id="slotStatus"></div>
+    </div>
+
+    <!-- 枠をまとめて作成（フェスの細かい間隔の枠を一度に） -->
+    <div class="card">
+      <h2>①+ 予約枠をまとめて作成</h2>
+      <div class="sub" style="margin-bottom:6px">日付と「最初〜最後の開始時刻・間隔」から枠を並べて作ります。作る前に一覧で確認できます。同じ日付・同じ開始時刻の枠がすでにあれば作りません。作った枠は、あとから1枠ずつ編集・削除できます。</div>
+      <label>日付（複数選べます）</label>
+      <div class="row" style="align-items:center">
+        <div><input type="date" id="bDateInput" /></div>
+        <div style="flex:0 0 auto;min-width:0"><button type="button" class="sub-btn" id="bDateAdd" style="margin:0">＋ 追加</button></div>
+      </div>
+      <div id="bDates" style="margin-top:6px"></div>
+      <div class="row">
+        <div><label>最初の開始時刻</label><input type="time" id="bFirst" value="10:10" /></div>
+        <div><label>最後の開始時刻</label><input type="time" id="bLast" value="15:00" /></div>
+        <div><label>間隔（分）</label><input type="number" id="bStep" value="20" min="5" step="5" /></div>
+        <div><label>時間帯の長さ（分）</label><input type="number" id="bLen" value="100" min="10" step="5" /></div>
+      </div>
+      <div class="row">
+        <div><label>定員</label><input type="number" id="bCap" value="20" /></div>
+        <div><label>料金</label>
+          <select id="bPrice">
+            <option value="standard">通常料金（事前1,500円／当日2,000円）</option>
+            <option value="free">無料（テストプレイ・招待）</option>
+          </select></div>
+        <div><label>予約締切の決め方</label>
+          <select id="bDl">
+            <option value="prev20">前日20:00</option>
+            <option value="60" selected>開始60分前</option>
+            <option value="10">開始10分前</option>
+            <option value="custom">開始の◯分前（下で指定）</option>
+          </select>
+          <input type="number" id="bDlMin" value="30" min="0" step="5" class="hidden" style="margin-top:6px" placeholder="分" /></div>
+      </div>
+      <label style="margin-top:10px; font-weight:400; cursor:pointer;">
+        <input type="checkbox" id="bAdults" style="width:auto; margin-right:6px; vertical-align:middle;" /><b>大人のみ</b>の枠にする
+      </label>
+      <label style="margin-top:4px; font-weight:400; cursor:pointer;">
+        <input type="checkbox" id="bTest" style="width:auto; margin-right:6px; vertical-align:middle;" />⏩ テストプレイ用の枠にする（30分進行・3人基本）
+      </label>
+      <div class="meta ng" id="bLenWarn" style="margin-top:4px"></div>
+      <button type="button" class="sub-btn" id="bPreviewBtn">作る枠を確認する</button>
+      <div class="status" id="bStatus"></div>
+      <div class="hidden" id="bPreview" style="max-height:340px;overflow:auto;border:1px solid #ece8dc;border-radius:8px;margin-top:8px"></div>
+      <button id="bCreateBtn" class="hidden">この内容で作成する</button>
     </div>
 
     <!-- スロット一覧＋マッチング／通知 -->
@@ -738,6 +790,102 @@
         if (r.ok) { set("slotStatus", "✅ 作成しました（" + date + " " + time + "）", "ok"); $("slotDate").value=""; $("slotTime").value=""; loadSlots(); }
         else set("slotStatus", "⚠️ " + (r.error || "失敗"), "ng");
       }
+    });
+
+    // ----- ①+ 予約枠をまとめて作成 -----
+    let bDates = [];          // 選んだ日付（YYYY-MM-DD・昇順）
+    let bPlan = null;         // 確認した内容（入力を変えたら作り直す）
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const hmOf = (min) => pad2(Math.floor(min / 60)) + ":" + pad2(min % 60);
+    const minOf = (v) => { const m = String(v || "").match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+    function renderBDates() {
+      $("bDates").innerHTML = bDates.length
+        ? bDates.map((d) => '<span class="chip in">' + fmtDate(d) + '<button type="button" class="x" data-d="' + d + '">×</button></span>').join("")
+        : '<span class="meta">まだ日付がありません</span>';
+    }
+    function invalidateB() { bPlan = null; $("bCreateBtn").classList.add("hidden"); $("bPreview").classList.add("hidden"); }
+    $("bDateAdd").addEventListener("click", () => {
+      const d = $("bDateInput").value; if (!d) return;
+      if (!bDates.includes(d)) { bDates.push(d); bDates.sort(); }
+      renderBDates(); invalidateB();
+    });
+    $("bDates").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-d]"); if (!b) return;
+      bDates = bDates.filter((d) => d !== b.dataset.d); renderBDates(); invalidateB();
+    });
+    ["bFirst","bLast","bStep","bLen","bCap","bPrice","bDl","bDlMin","bAdults","bTest"].forEach((id) => {
+      $(id).addEventListener("input", invalidateB); $(id).addEventListener("change", invalidateB);
+    });
+    $("bDl").addEventListener("change", () => $("bDlMin").classList.toggle("hidden", $("bDl").value !== "custom"));
+    function updateBLenWarn() {
+      const need = $("bTest").checked ? 30 : 100, len = parseInt($("bLen").value, 10) || 0;
+      $("bLenWarn").textContent = len && len < need ? "⚠️ 時間帯が" + len + "分しかありません。クエストは" + need + "分です" : "";
+    }
+    $("bLen").addEventListener("input", updateBLenWarn); $("bTest").addEventListener("change", updateBLenWarn);
+    renderBDates();
+
+    // 入力から作る枠を並べる（締切は日本時間で計算してISOにする）
+    function buildBatchSlots() {
+      const first = minOf($("bFirst").value), last = minOf($("bLast").value);
+      const step = parseInt($("bStep").value, 10), len = parseInt($("bLen").value, 10);
+      if (!bDates.length) throw new Error("日付を1つ以上追加してください");
+      if (first === null || last === null) throw new Error("最初と最後の開始時刻を入れてください");
+      if (last < first) throw new Error("最後の開始時刻が最初より前になっています");
+      if (!(step >= 5)) throw new Error("間隔は5分以上にしてください");
+      if (!(len >= 10)) throw new Error("時間帯の長さを入れてください");
+      if (first + len > 24 * 60 || last + len > 24 * 60) throw new Error("終わりが日付をまたぐ枠は作れません");
+      const dlMode = $("bDl").value, dlMin = dlMode === "custom" ? parseInt($("bDlMin").value, 10) : parseInt(dlMode, 10);
+      if (dlMode === "custom" && !(dlMin >= 0)) throw new Error("締切の「◯分前」を入れてください");
+      const out = [];
+      for (const date of bDates) {
+        for (let m = first; m <= last; m += step) {
+          const start = new Date(date + "T" + hmOf(m) + ":00+09:00");
+          // 前日20:00＝その日の20:00（日本時間）の24時間前。それ以外は開始の◯分前
+          const dl = dlMode === "prev20"
+            ? new Date(new Date(date + "T20:00:00+09:00").getTime() - 24 * 3600000)
+            : new Date(start.getTime() - dlMin * 60000);
+          out.push({ date, time: hmOf(m) + "〜" + hmOf(m + len), deadline: dl.toISOString() });
+        }
+      }
+      return out;
+    }
+    function batchParams(slots, dryRun) {
+      const p = { slots: JSON.stringify(slots), capacity: $("bCap").value, priceType: $("bPrice").value };
+      if ($("bTest").checked) p.isTest = "1";
+      if ($("bAdults").checked) p.adultsOnly = "1";
+      if (dryRun) p.dryRun = "1";
+      return p;
+    }
+    $("bPreviewBtn").addEventListener("click", async () => {
+      let slots;
+      try { slots = buildBatchSlots(); } catch (e) { set("bStatus", "⚠️ " + e.message, "ng"); invalidateB(); return; }
+      set("bStatus", "確認中…", "");
+      const r = await api("createSlotsBatch", batchParams(slots, true));
+      if (!r.ok) { set("bStatus", "⚠️ " + (r.error || "失敗"), "ng"); invalidateB(); return; }
+      bPlan = slots;
+      const why = { exists: "すでにある", duplicate: "重複" };
+      $("bPreview").innerHTML = '<table class="b-table"><tr><th>日付</th><th>時間帯</th><th>予約締切</th><th></th></tr>'
+        + r.plan.map((x) => '<tr class="' + (x.skip ? "skip" : "") + '"><td>' + fmtDate(x.date) + '</td><td>' + esc(x.time)
+          + '</td><td>' + esc(fmtDateTime(x.deadline)) + '</td><td class="why">' + (x.skip ? why[x.skip] + "ので作らない" : "") + '</td></tr>').join("")
+        + '</table>';
+      $("bPreview").classList.remove("hidden");
+      set("bStatus", "作成 " + r.createCount + "枠" + (r.skipCount ? "／作らない " + r.skipCount + "枠（すでにある・重複）" : "")
+        + "（定員" + $("bCap").value + "・" + ($("bPrice").value === "free" ? "無料" : "通常料金")
+        + ($("bAdults").checked ? "・大人のみ" : "") + ($("bTest").checked ? "・テストプレイ用" : "") + "）", r.createCount ? "ok" : "ng");
+      $("bCreateBtn").classList.toggle("hidden", !r.createCount);
+      $("bCreateBtn").textContent = "この内容で " + r.createCount + "枠を作成する";
+    });
+    $("bCreateBtn").addEventListener("click", async () => {
+      if (!bPlan) return;
+      if (!confirm($("bCreateBtn").textContent + "。よろしいですか？")) return;
+      $("bCreateBtn").disabled = true;
+      set("bStatus", "作成中…", "");
+      const r = await api("createSlotsBatch", batchParams(bPlan, false));
+      $("bCreateBtn").disabled = false;
+      if (!r.ok) { set("bStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      invalidateB();
+      set("bStatus", "✅ " + r.created + "枠を作成しました" + (r.skipped ? "（" + r.skipped + "枠はすでにあったので作っていません）" : ""), "ok");
+      loadSlots();
     });
 
     // ----- ② スロット一覧 -----
