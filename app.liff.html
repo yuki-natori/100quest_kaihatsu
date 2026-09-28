@@ -170,19 +170,10 @@
     .q-party { text-align:center; font-size:15px; font-weight:800; color:var(--green); margin-bottom:14px; }
     .q-party small { display:block; font-size:11px; font-weight:500; color:var(--sub); margin-top:2px; }
     /* メインゲージ（1本だけ。5本並べない） */
-    .q-gauge-label { font-size:12px; font-weight:700; color:var(--sub); }
     .gauge { height:16px; background:#eee7d6; border-radius:99px; overflow:hidden; margin:6px 0 4px; }
     .gauge-fill { height:100%; width:0; background:linear-gradient(90deg,#7bc47f,var(--green));
       border-radius:99px; transition:width .6s ease; }
     .q-gauge-num { text-align:right; font-size:12px; color:var(--sub); }
-    /* 「あと◯で△姫を救出！」＝最も目立たせる */
-    .q-next { background:linear-gradient(135deg,#fff6df,#ffefc2); border:1.5px solid rgba(230,168,23,.5);
-      border-radius:12px; padding:12px; text-align:center; margin:12px 0; }
-    .q-next .qn-main { font-size:17px; font-weight:800; color:#8a5e00; line-height:1.5; }
-    .q-next .qn-main .qn-num { font-size:24px; color:var(--accent); }
-    .q-next .qn-sub { font-size:11.5px; color:#6e4d00; margin-top:4px; }
-    .q-next.done { background:#f3faf5; border-color:var(--green); }
-    .q-next.done .qn-main { color:var(--green); }
     /* 救出した姫 */
     .q-princess-title { font-size:12px; font-weight:700; color:var(--sub); margin:14px 0 6px; text-align:center; }
     .q-princesses { display:flex; justify-content:center; gap:10px; margin-bottom:16px; }
@@ -242,8 +233,12 @@
       border:1px solid rgba(230,168,23,.45); border-radius:99px; padding:3px 10px; }
     #groupDetail > .share-btn { width:100%; margin:0 0 12px; }
     /* 内訳は小さく1行だけ */
-    .q-breakdown { text-align:center; font-size:12px; color:var(--sub); margin-top:12px;
-      padding-top:10px; border-top:1px solid #f0ece1; }
+    .q-breakdown { text-align:center; font-size:12px; color:var(--sub); margin:0 0 12px;
+      padding:6px 8px; background:#f7f4ea; border-radius:8px; }
+    /* 次の目標のバナーに入れる「集めたチカラ」ゲージ（常に見える位置） */
+    .action-banner .ab-gauge { margin-top:8px; }
+    .action-banner .ab-gauge-head { display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:var(--sub); }
+    .action-banner .ab-gauge .gauge { margin:4px 0 0; }
     .q-breakdown span { display:inline-block; margin:0 5px; white-space:nowrap; }
     .q-breakdown span.zero { opacity:.35; }
     /* ミッション一覧 */
@@ -647,6 +642,8 @@
           <div class="missions">
             <div class="missions-title" id="missionsTitle">ミッション（パーティ全員のチェックでクリア）</div>
             <div class="m-tabs" id="missionTabs"></div>
+            <!-- チカラの内訳（どのチカラが足りないか、ミッションを選ぶときに見られるように） -->
+            <div class="q-breakdown hidden" id="qBreakdown"></div>
             <div id="missionList"></div>
           </div>
         </div>
@@ -662,18 +659,6 @@
             <div class="ground"></div>
           </div>
           <div class="q-princesses" id="qPrincesses"></div>
-
-          <!-- メインゲージ（1本だけ） -->
-          <div class="q-gauge-label">集めたチカラ</div>
-          <div class="gauge"><div class="gauge-fill" id="qGauge"></div></div>
-          <div class="q-gauge-num" id="qGaugeNum">0</div>
-
-          <!-- 「あと◯で△姫を救出！」＝最も目立たせる -->
-          <div class="q-next" id="qNext"></div>
-
-          <!-- 内訳は小さく1行 -->
-          <div class="q-breakdown" id="qBreakdown"></div>
-
         </div>
       </div>
 
@@ -1332,12 +1317,12 @@
               : '<div class="ab-title">ブース前で ' + left + ' つのミッション</div>'
                 + '<div class="ab-sub">3つ終えると、ペンペン姫が行き先を教えてくれるよ</div>');
         } else if (questData && questData.next) {
-          // クエスト中 → 次の姫まであと何チカラか（最も行動を促す表示）
+          // クエスト中 → 次の姫まであと何チカラか（最も行動を促す表示）＋集めたチカラのゲージ
           const n = questData.next;
           if (n.remaining > 0) {
             html = '<div class="ab-label">次の目標</div>'
               + '<div class="ab-title">あと ' + n.remaining + ' で ' + n.emoji + esc(n.name) + 'を救出！</div>'
-              + '<div class="ab-sub">ミッションはパーティ全員のチェックでクリア</div>';
+              + '<div class="ab-sub">' + (n.requireAllPowers ? '※5種類すべてのチカラが1つ以上必要です' : 'ミッションはパーティ全員のチェックでクリア') + '</div>';
           } else if (n.requireAllPowers && n.missingPowers.length) {
             const need = n.missingPowers.map((k) => POWER_META[k].emoji + POWER_META[k].label).join("・");
             html = '<div class="ab-label">次の目標</div>'
@@ -1346,8 +1331,10 @@
           } else {
             html = '<div class="ab-title">' + n.emoji + esc(n.name) + 'を救出できる！</div>';
           }
+          html += powerGaugeHtml(questData);
+        } else if (questData) {
+          html = '<div class="ab-title">🎉 4人の姫を全員救出！</div>' + powerGaugeHtml(questData);
         }
-        // 全員救出したあとはバナーを出さない（姫たちタブに同じ表示があり、重なるため）
       }
 
       if (!html) { box.classList.add("hidden"); return; }
@@ -1355,6 +1342,15 @@
       box.classList.remove("hidden");
       const cb = $("abCheckinBtn"); if (cb) cb.onclick = doCheckinFromBanner;
       const sb = $("abShareBtn"); if (sb) sb.onclick = openShareCard;
+    }
+
+    // 「集めたチカラ」ゲージ：次の姫までを満たす割合（全員救出後は満タン）
+    function powerGaugeHtml(q) {
+      const goal = q.next ? q.next.need : q.totalPower;
+      const pct = goal > 0 ? Math.min(100, Math.round(q.totalPower / goal * 100)) : 100;
+      return '<div class="ab-gauge"><div class="ab-gauge-head"><span>集めたチカラ</span><span>'
+        + q.totalPower + (q.next ? " / " + q.next.need : "") + '</span></div>'
+        + '<div class="gauge"><div class="gauge-fill" style="width:' + pct + '%"></div></div></div>';
     }
 
     async function doCheckinFromBanner() {
@@ -1908,12 +1904,11 @@
     }
 
     // ----- パーティ／姫たち／ミッション の表示切替 -----
-    // チェックインするまでは、パーティのメンバーとチュートリアルだけを縦に並べる（タブは出さない）。
-    // チェックインしたら（またはクエストが始まったら）3つのタブで分ける。最初に開くタブは状況で選ぶ
-    //   開始前（到着待ち）→ パーティ ／ 開始後 → ミッション
+    // チュートリアルが終わるまでは、パーティのメンバーとチュートリアルだけを縦に並べる（タブは出さない）。
+    // チュートリアルが終わったら3つのタブで分ける。最初に開くタブはミッション
     let groupView = null; // "party" | "progress"（姫たち） | "mission"
     function applyGroupView() {
-      const split = !!(currentGroup && questData && (currentGroup.checkedIn || currentGroup.status === "started"));
+      const split = !!(currentGroup && questData && questData.phase === "main");
       $("viewTabs").classList.toggle("hidden", !split);
       if (!split) {
         $("groupBox").classList.toggle("hidden", !currentGroup);
@@ -1956,35 +1951,6 @@
       $("qParty").innerHTML = esc(q.partyName || "あなたのパーティ") +
         '<small>' + q.memberTotal + '人で挑戦中</small>';
 
-      // メインゲージ：次の姫までを満たす割合（全員救出後は満タン）
-      const goal = q.next ? q.next.need : q.totalPower;
-      const pct = goal > 0 ? Math.min(100, Math.round(q.totalPower / goal * 100)) : 100;
-      $("qGauge").style.width = pct + "%";
-      $("qGaugeNum").textContent = q.totalPower + (q.next ? " / " + q.next.need : "");
-
-      // 「あと◯で△姫を救出！」＝一番目立たせる
-      const nx = $("qNext");
-      if (!q.next) {
-        nx.className = "q-next done";
-        nx.innerHTML = '<div class="qn-main">🎉 4人の姫を全員救出！</div>'
-          + '<div class="qn-sub">集めたチカラ ' + q.totalPower + '</div>';
-      } else if (q.next.remaining > 0) {
-        nx.className = "q-next";
-        nx.innerHTML = '<div class="qn-main">あと <span class="qn-num">' + q.next.remaining + '</span> で '
-          + q.next.emoji + esc(q.next.name) + 'を救出！</div>'
-          + (q.next.requireAllPowers
-              ? '<div class="qn-sub">※5種類すべてのチカラが1つ以上必要です</div>' : '');
-      } else if (q.next.requireAllPowers && q.next.missingPowers.length) {
-        // チカラは足りているが種類が足りない（終盤の戦略ポイント）
-        nx.className = "q-next";
-        const need = q.next.missingPowers.map((k) => POWER_META[k].emoji + POWER_META[k].label).join("・");
-        nx.innerHTML = '<div class="qn-main">' + q.next.emoji + esc(q.next.name) + 'まであと少し！</div>'
-          + '<div class="qn-sub">' + need + ' のミッションをクリアしよう</div>';
-      } else {
-        nx.className = "q-next done";
-        nx.innerHTML = '<div class="qn-main">' + q.next.emoji + esc(q.next.name) + 'を救出できる！</div>';
-      }
-
       // 救出した姫（進むほど賑やかになる）
       $("qPrincesses").innerHTML = (q.princesses || []).map((p) =>
         '<div class="q-p' + (p.rescued ? ' got' : '') + '">'
@@ -1992,8 +1958,9 @@
         + '<div class="qp-name">' + (p.rescued ? esc(p.name) : "？？？") + '</div></div>'
       ).join("");
 
-      // 内訳は小さく1行
-      $("qBreakdown").innerHTML = "内訳 " + POWER_ORDER.map((k) => {
+      // 内訳は小さく1行（ミッションタブの絞り込みの下。本編に入ってから出す）
+      $("qBreakdown").classList.toggle("hidden", q.phase !== "main");
+      $("qBreakdown").innerHTML = "チカラの内訳 " + POWER_ORDER.map((k) => {
         const v = (q.powers || {})[k] || 0;
         return '<span class="' + (v ? "" : "zero") + '">' + POWER_META[k].emoji + v + '</span>';
       }).join("");
