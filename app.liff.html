@@ -344,7 +344,7 @@
     .resv-party { flex:1 0 100%; order:2; font-size:12px; color:var(--green);
       font-weight:700; line-height:1.6; margin-top:5px; }
     .resv-party .rp-code { background:#eaf6ef; border-radius:6px; padding:1px 7px; letter-spacing:.1em; }
-    /* ===== ミッション／パーティ／進行 の表示切替 ===== */
+    /* ===== パーティ／進行／ミッション の表示切替 ===== */
     .view-tabs { display:flex; gap:8px; margin:0 0 12px; }
     .vtab { flex:1; min-width:0; padding:10px 4px; border-radius:10px; border:1.5px solid #d9d4c6; background:#fff;
       font-size:13.5px; font-weight:800; color:var(--sub); cursor:pointer; line-height:1.35; }
@@ -363,7 +363,8 @@
     @keyframes tutFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
     @media (prefers-reduced-motion:reduce) { .tut-face { animation:none; } }
     /* パーティ名をつける行 */
-    .m-name-edit { flex:1 0 100%; display:flex; gap:6px; margin-top:8px; }
+    .m-name-edit { flex:1 0 100%; display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .m-name-hint { flex:1 0 100%; font-size:11px; color:var(--sub); }
     .m-name-edit input { flex:1; min-width:0; padding:8px 10px; font-size:14px;
       border:1.5px solid #d9d4c6; border-radius:8px; font-family:inherit; }
     .m-name-edit button { flex:0 0 auto; margin:0; padding:8px 14px; font-size:13px; font-weight:700;
@@ -432,6 +433,14 @@
     .share-actions button { padding:13px; font-size:15px; font-weight:800; border:none; border-radius:12px; cursor:pointer; color:#fff; background:#000; }
     .share-actions .dl { background:var(--accent); }
     .share-actions .close { background:#fff; color:var(--sub); border:1px solid #ccc; }
+    /* 記念画像の保存（LINEの中ではダウンロードが効かないので、画像を出して長押しで保存してもらう） */
+    #saveOverlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:110;
+      display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
+    #saveOverlay img { width:min(300px,80vw); height:auto; border-radius:12px; background:#fff;
+      -webkit-touch-callout:default; user-select:auto; }
+    #saveOverlay .sv-note { color:#fff; font-size:14px; font-weight:700; text-align:center; line-height:1.6; margin:14px 0 12px; }
+    #saveOverlay button { padding:12px 40px; font-size:15px; font-weight:800; border:none; border-radius:12px;
+      background:#fff; color:var(--ink); cursor:pointer; }
     @media (prefers-reduced-motion: reduce) {
       .animal, .cloud { animation:none !important; }
     }
@@ -588,7 +597,7 @@
       <!-- 今やることバナー（状態に応じて表示） -->
       <div class="action-banner hidden" id="actionBanner"></div>
 
-      <!-- ミッション／パーティ／進行 の切り替え -->
+      <!-- パーティ／進行／ミッション の切り替え -->
       <div class="view-tabs hidden" id="viewTabs"></div>
 
       <!-- 👥 パーティ：グループ発表・メンバー・到着状況 -->
@@ -904,10 +913,17 @@
     </div>
     <div class="share-actions">
       <button id="xShareBtn">リベでつぶやく</button>
-      <button id="dlBtn" class="dl">🎁 記念画像をダウンロード</button>
+      <button id="dlBtn" class="dl">📸 記念画像を保存</button>
       <button id="closeShareBtn" class="close">閉じる</button>
     </div>
     <canvas id="dlCanvas" width="600" height="800" style="display:none"></canvas>
+  </div>
+
+  <!-- 記念画像の保存（長押しで保存） -->
+  <div id="saveOverlay" class="hidden">
+    <img id="saveImg" alt="100分クエストの記念画像">
+    <div class="sv-note">画像を長押しして<br>出てきたメニューから保存してね</div>
+    <button id="saveCloseBtn">閉じる</button>
   </div>
 
   <script>
@@ -1164,6 +1180,8 @@
       const target = typeof preferredSlotId === "string"
         && myReservationsCache.find((r) => r.slotId === preferredSlotId);
       if (target) { await openGroupDetail(target.slotId); return; }
+      // 予約が1件だけなら、選ぶ手間を省いてそのパーティを直接開く
+      if (myReservationsCache.length === 1) { await openGroupDetail(myReservationsCache[0].slotId); return; }
       showGroupPick();
     }
 
@@ -1191,7 +1209,11 @@
       });
       window.scrollTo(0, 0);
     }
-    $("backToPick").addEventListener("click", showGroupPick);
+    // 戻る：予約が2件以上なら時間の一覧へ、1件だけならメニューへ
+    $("backToPick").addEventListener("click", () => {
+      if (myReservationsCache.length > 1) showGroupPick();
+      else { stopGroupPoll(); stopTick(); stopPrincessCry(); openMenu(); }
+    });
 
     // ② 選んだ時間のパーティ（ミッション／パーティ／進行）
     async function openGroupDetail(slotId) {
@@ -1205,6 +1227,7 @@
       $("groupPick").classList.add("hidden");
       $("groupDetail").classList.remove("hidden");
       $("detailSlot").textContent = r ? formatSlot(r.date, r.time) : "";
+      $("backToPick").textContent = myReservationsCache.length > 1 ? "← 予約した時間の選択に戻る" : "← メニューに戻る";
       window.scrollTo(0, 0);
       await renderGroupDetail(slotId);
     }
@@ -1275,9 +1298,9 @@
         }
       } else if (g.status === "started") {
         if (endMs && now >= endMs) {
-          // 終了後 → 結果カード＆ノベルティ案内
+          // 終了後 → 結果カード（記念画像の保存）の案内
           html = '<div class="ab-title">🎉 クエスト終了！おつかれさまでした</div>'
-            + '<div class="ab-sub">ノベルティは運営ブースで受け取ってね</div>'
+            + '<div class="ab-sub">結果カードから記念画像を保存できるよ</div>'
             + (questData ? '<button class="ab-btn" id="abShareBtn">🎁 結果カードを見る</button>' : '');
         } else if (questData && questData.phase === "tutorial") {
           // チュートリアル中 → 「今やること」は姫の救出ではなく目の前の4つ
@@ -1865,7 +1888,7 @@
       applyGroupView();
     }
 
-    // ----- ミッション／パーティ／進行 の表示切替 -----
+    // ----- パーティ／進行／ミッション の表示切替 -----
     // パーティが決まったら3つのタブで分ける。最初に開くタブは状況で選ぶ
     //   開始前（集合・到着待ち）→ パーティ ／ 開始後 → ミッション
     let groupView = null; // "mission" | "party" | "progress"
@@ -1893,9 +1916,9 @@
         '<button class="vtab' + (groupView === view ? " active" : "") + '" data-view="' + view + '">'
         + label + '<small>' + sub + '</small></button>';
       $("viewTabs").innerHTML =
-        tab("mission", "🏰 ミッション", left ? "残り " + left + "件" : "すべてクリア！") +
         tab("party", "👥 パーティ", questData.memberTotal + "人") +
-        tab("progress", "🌱 進行", "姫 " + got + "/" + all);
+        tab("progress", "🌱 進行", "姫 " + got + "/" + all) +
+        tab("mission", "🏰 ミッション", left ? "残り " + left + "件" : "すべてクリア！");
     }
     $("viewTabs").addEventListener("click", (e) => {
       const b = e.target.closest(".vtab"); if (!b) return;
@@ -2134,9 +2157,14 @@
     function buildPartyNameEditor(q) {
       const wrap = document.createElement("div");
       wrap.className = "m-name-edit";
-      const max = (q.tutorial || {}).nameMax || 20;
-      wrap.innerHTML = '<input type="text" maxlength="' + max + '" placeholder="パーティ名（' + max + '文字まで）" />'
-        + '<button type="button">決定</button>';
+      // 名前の最後には「団・隊・同盟・ギルド」のどれかがサーバーで自動でつく。その分を空けて入力させる
+      const t = q.tutorial || {};
+      const max = t.nameMax || 20;
+      const bodyMax = t.nameBodyMax || (max - 3);
+      const suffixes = t.suffixes || ["団", "隊", "同盟", "ギルド"];
+      wrap.innerHTML = '<input type="text" maxlength="' + max + '" placeholder="パーティ名（' + bodyMax + '文字まで）" />'
+        + '<button type="button">決定</button>'
+        + '<div class="m-name-hint">最後に「' + suffixes.map(esc).join("・") + '」のどれかが自動でつくよ</div>';
       const input = wrap.querySelector("input");
       const btn = wrap.querySelector("button");
       const draft = partyNameDraft && partyNameDraft.slotId === currentGroupSlotId ? partyNameDraft.value : null;
@@ -2297,11 +2325,35 @@
       ctx.fillText("集めたチカラ " + q.totalPower + " ⭐️", W / 2, 660);
       ctx.fillStyle = "#2f6d4f"; ctx.font = "bold 26px sans-serif"; ctx.fillText("#100分クエスト", W / 2, 710);
       ctx.fillStyle = "#6b6b63"; ctx.font = "20px sans-serif"; ctx.fillText(fmtCardDate(q.date), W / 2, 745);
-      const a = document.createElement("a");
-      a.href = cv.toDataURL("image/png");
-      a.download = "100quest_" + (g.animal || "result") + ".png";
-      a.click();
+      saveMemorialImage(cv, "100quest_" + (q.date || "result") + ".png");
     });
+
+    // 記念画像を端末に残す。
+    //   LINEの中：共有メニュー（「画像を保存」を選べる）→ 使えなければ画像を出して長押しで保存
+    //   ふつうのブラウザ：そのままダウンロード
+    async function saveMemorialImage(cv, fileName) {
+      const dataUrl = cv.toDataURL("image/png");
+      const inLine = !!(window.liff && liff.isInClient && liff.isInClient());
+      if (!inLine) {
+        const a = document.createElement("a");
+        a.href = dataUrl; a.download = fileName;
+        document.body.appendChild(a); a.click(); a.remove();
+        return;
+      }
+      try {
+        const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
+        const file = blob && new File([blob], fileName, { type: "image/png" });
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "100分クエスト" });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 共有メニューを自分で閉じた
+      }
+      $("saveImg").src = dataUrl;
+      $("saveOverlay").classList.remove("hidden");
+    }
+    $("saveCloseBtn").addEventListener("click", () => $("saveOverlay").classList.add("hidden"));
     function wrapText(ctx, text, x, y, maxW, lh) {
       const words = text.split(" "); let line = ""; let yy = y;
       for (const w of words) {
