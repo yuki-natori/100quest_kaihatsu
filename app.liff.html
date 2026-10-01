@@ -61,6 +61,8 @@
     }
     .field input:focus, .field select:focus { outline:none; border-color:var(--green); }
     .field .hint { font-size:11px; color:var(--sub); margin-top:5px; }
+    .reg-privacy { font-size:12px; color:var(--sub); background:#f6f4ec; border-radius:10px; padding:10px 12px; margin:6px 0 12px; line-height:1.7; }
+    .reg-privacy a { color:var(--green); text-decoration:underline; cursor:pointer; }
     .select-wrap { position:relative; }
     .select-wrap::after { content:"▾"; position:absolute; right:14px; top:50%;
       transform:translateY(-50%); color:var(--sub); pointer-events:none; }
@@ -586,6 +588,9 @@
         <input type="text" id="libeUrl" maxlength="120" placeholder="https://libecity.com/user_profile/…" autocomplete="off" />
         <div class="hint">入力すると、同じパーティの仲間があなたのリベシティのプロフィールを見られるよ（空欄でもOK・あとから追加/削除できます）</div>
       </div>
+      <!-- 出店要項：外部ツールで予約を受けるときは、利用目的とフェス後の削除を事前に説明する -->
+      <div class="reg-privacy">📝 登録した情報は、パーティの組み合わせ・当日のご案内（LINE）・参加費の受け取り・お問い合わせ対応など、100分クエストの運営のためだけに使います。<b>フェス終了後、2027年7月31日までにすべて削除します。</b><br>
+        登録すると、<a id="regTerms">利用規約</a>と<a id="regPrivacy">プライバシーポリシー</a>に同意したものとします。</div>
       <button type="submit" class="submit" id="regBtn">この内容で登録する</button>
       <button type="button" class="back-btn hidden" id="regBackBtn" style="width:100%;margin-top:10px">戻る</button>
       <div class="status" id="regStatus"></div>
@@ -1209,6 +1214,8 @@
     // プロフィールの確認・編集はロゴ下の「編集」ボタンに集約（menuProfileカードは廃止）
     $("menuMap").addEventListener("click", () => alert("🗺 会場マップは近日公開予定です。\n当日をお楽しみに！"));
     $("menuFaq").addEventListener("click", () => openExternal("https://yuki-natori.github.io/bocchi-liff/faq.html"));
+    $("regTerms").addEventListener("click", () => openExternal("https://yuki-natori.github.io/bocchi-liff/terms.html"));
+    $("regPrivacy").addEventListener("click", () => openExternal("https://yuki-natori.github.io/bocchi-liff/privacy.html"));
     $("menuContact").addEventListener("click", () => openExternal("https://line.me/R/ti/p/@534oibuu"));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", openMenu));
 
