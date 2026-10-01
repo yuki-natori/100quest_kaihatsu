@@ -168,6 +168,9 @@
     #markOverlay .mk-sub { font-size:18px; font-weight:700; margin-top:6px; opacity:.85; }
     #markOverlay .mk-close { position:absolute; bottom:28px; font-size:13px; opacity:.75; }
     .action-banner .ab-btn.go { background:var(--accent); }
+    .action-banner .ab-pay { margin-top:8px; background:#fff6df; border:1.5px solid rgba(230,168,23,.5); border-radius:10px;
+      padding:8px 10px; font-size:13px; font-weight:700; color:#8a5e00; line-height:1.5; }
+    .action-banner .ab-pay.done { background:#f3faf5; border-color:var(--green); color:var(--green); }
     .action-banner .ab-mark { width:100%; margin-top:8px; padding:9px; font-size:13px; font-weight:800; color:var(--green);
       background:#fff; border:1.5px solid var(--green); border-radius:10px; cursor:pointer; font-family:inherit; }
     .group-box .gmark { display:inline-block; margin-top:6px; padding:3px 12px; border-radius:99px; font-size:13px; font-weight:800;
@@ -870,6 +873,7 @@
     <!-- 所持クーポン -->
     <div id="couponBox">
       <div class="section-title">お持ちのクーポン</div>
+      <div class="pm-note" id="couponHowto" style="margin:-4px 0 10px">クーポンは、当日ブースで参加費をお支払いするときに使えます。お支払いのときに、スタッフにこの画面を見せてください。</div>
       <div id="couponList"></div>
     </div>
 
@@ -1331,18 +1335,27 @@
           // 開始前・未チェックイン → 受付は開始◯分前から（それまでは会場を楽しんでもらう）
           const beforeWindow = openMs && now < openMs;
           html = '<div class="ab-title">⏰ ' + (openMs ? fmtHM(openMs) + '（開始' + openMin + '分前）に' : '') + 'ブースへ集合</div>'
+            + (bth.payAtBooth && bth.myPrice > 0 && !bth.myPaid
+              ? '<div class="ab-sub">💴 参加費 ' + yen(bth.myPrice) + '（' + esc(bth.myPriceLabel) + '）は、スタート前にブースでお支払いください</div>' : '')
             + (beforeWindow
               ? '<div class="ab-sub">開始' + openMin + '分前から受付できます。時間まで会場をお楽しみください。</div>'
               : '<button class="ab-btn" id="abCheckinBtn">✋ 到着しました（チェックイン）</button>')
             + markButtonHtml(g);
         } else {
-          // 開始前・チェックイン済み → 全員そろったら「パーティが集まった」
+          // 開始前・チェックイン済み → 支払いを済ませて、全員そろったら「パーティが集まった」
           const need = bth.minToStart || 3;
-          const can = (g.arrived || 0) >= need;
+          const unpaidHere = (g.members || []).filter((m) => m.checkedIn && m.unpaid).map((m) => m.nickname + "さん");
+          const can = (g.arrived || 0) >= need && !unpaidHere.length;
+          const payLine = bth.payAtBooth && bth.myPrice > 0
+            ? (bth.myPaid ? '<div class="ab-pay done">💴 参加費は支払い済みです（' + yen(bth.myPaidAmount) + '）</div>'
+               : '<div class="ab-pay">💴 参加費 ' + yen(bth.myPrice) + '（' + esc(bth.myPriceLabel) + '）を、ブースのスタッフにお支払いください。クーポンはこのとき使えます</div>')
+            : "";
           html = '<div class="ab-title">✅ チェックイン済み（到着 ' + (g.arrived || 0) + '/' + (g.total || 0) + '人）</div>'
-            + '<div class="ab-sub">全員そろったら、だれか1人が押してね</div>'
+            + payLine
+            + '<div class="ab-sub">全員そろってお支払いが済んだら、だれか1人が押してね</div>'
             + '<button class="ab-btn go" id="abStartBtn"' + (can ? '' : ' disabled') + '>🚩 パーティが集まった</button>'
-            + '<div class="ab-sub">' + (can ? '' : need + '人以上そろうと押せます。')
+            + '<div class="ab-sub">' + ((g.arrived || 0) < need ? need + '人以上そろうと押せます。'
+              : unpaidHere.length ? 'まだお支払いが済んでいない人：' + esc(unpaidHere.join("・")) + '。' : '')
             + (bth.autoStartAt ? '押さなくても ' + fmtHM(Date.parse(bth.autoStartAt)) + ' に' + need + '人以上いれば自動でスタートします' : '') + '</div>'
             + markButtonHtml(g);
         }
@@ -1831,7 +1844,12 @@
         let mHtml = "";
         if (r.minor === "borrowed") mHtml = '<div class="resv-minor">👧 お子さまが参加：' + esc(r.participantNickname || r.nickname || "") + '（無料・保護者は付き添い）</div>';
         else if (r.minor === "invited") mHtml = '<div class="resv-minor">👧 18歳未満（保護者：' + esc(r.guardianNickname || "") + 'さん）・無料</div>';
-        div.innerHTML = '<span class="rtime">' + formatSlot(r.date, r.time) + '</span>' + pHtml + mHtml;
+        // 当日ブースで払う参加費（払ったら支払い済み）
+        const payHtml = r.boothPrice > 0
+          ? '<div class="resv-minor">💴 ' + (r.boothPaidAmount != null ? "ブースで支払い済み（" + yen(r.boothPaidAmount) + "）"
+              : "参加費 " + yen(r.boothPrice) + "（" + esc(r.boothPriceLabel) + "）は当日ブースで、スタート前にお支払い") + '</div>'
+          : "";
+        div.innerHTML = '<span class="rtime">' + formatSlot(r.date, r.time) + '</span>' + pHtml + mHtml + payHtml;
         // 締切を過ぎるとキャンセルできない（締切時点でパーティが組まれるため）
         const slot = (slotsCache || []).find((x) => x.slotId === r.slotId);
         const closed = slot ? slot.closed : false;
@@ -1842,6 +1860,10 @@
           // 支払い前なので、締切後でも取りやめられる
           c.textContent = "やめる";
           c.onclick = () => cancelResv(r.slotId, formatSlot(r.date, r.time), true);
+        } else if (r.boothPaidAmount != null) {
+          c.textContent = "支払い済み";
+          c.disabled = true;
+          c.title = "ブースでお支払い済みのため、キャンセルはブースのスタッフにご相談ください";
         } else if (closed) {
           c.textContent = "締切後";
           c.disabled = true;
@@ -2666,12 +2688,14 @@
       $("reserveBtn").disabled = false;
       $("reserveBtn").textContent = formatSlot(s.date, startHM(s.time)) + "〜 で予約する";
       let price = "";
-      if (paymentsInfo && paymentsInfo.enabled) {
+      if (paymentsInfo && (paymentsInfo.enabled || paymentsInfo.booth)) {
         if ($("minorBorrowed").checked) price = "無料（18歳未満）";
         else if (!s.priceNow) price = "無料";
         else if (s.priceNow === paymentsInfo.sameDay) price = yen(s.priceNow) + "（当日予約）";
         else price = yen(s.priceNow) + "（事前予約）"
           + (paymentsInfo.sameDay ? '<br><small>枠の当日に予約すると ' + yen(paymentsInfo.sameDay) + '</small>' : "");
+        // 予約は無料。参加費は当日ブースで、スタートの前にお支払い（クーポンもそのとき使う）
+        if (paymentsInfo.booth && price && price.indexOf("無料") !== 0) price += '<br><small>予約は無料。参加費はスタート前に当日ブースでお支払いください（クーポンもそのとき使えます）</small>';
       }
       sd.innerHTML = '<div class="slot-detail">' + when
         + '<div class="sd-row">残り <b>' + s.remaining + '席</b>' + (st.cls === "few" ? "（残りわずか）" : "") + '</div>'
