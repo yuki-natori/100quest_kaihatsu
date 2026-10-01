@@ -242,14 +242,14 @@
       <div class="sub" style="margin-top:6px">
         <b>締切時刻に自動でマッチングされます</b>（LINE通知は送られません。内容を確認してから
         「結果を一斉通知」を押してください）。締切後は参加者がキャンセルできなくなります。<br>
-        当日の飛び込み参加を受けたい枠は「開始10分前」にしてください（チェックインも10分前からです）。
+        当日の飛び込み参加を受けたい枠は「開始10分前」にしてください（チェックインの受付開始は🎪当日運用の「ブースの流れの設定」で決めます）。
       </div>
       <label style="margin-top:10px; font-weight:400; cursor:pointer;">
         <input type="checkbox" id="slotTest" style="width:auto; margin-right:6px; vertical-align:middle;" />
         ⏩ テストプレイ用の枠にする（<b>30分進行・3人基本グループ</b>）
       </label>
       <div class="sub" style="margin:2px 0 0 22px;">
-        進行が短縮されます：締切+5分／お題2 +12分／お題3 +25分／終了+30分。グループは3人＞4人＞5人の優先で分けます。
+        進行が短縮されます：折り返し +12分／ラストスパート +25分／終了 +30分（待機猶予・途中合流はテスト枠用の設定値）。グループは3人＞4人＞5人の優先で分けます。
       </div>
       <button id="createSlotBtn">この枠を作成</button>
       <button id="cancelEditBtn" class="sub-btn hidden">編集をやめる</button>
@@ -399,6 +399,46 @@
 
     <!-- ===== タブ: 当日運用 ===== -->
     <div id="tab-ops" class="tab-page hidden">
+
+    <!-- ブースの様子（スタッフ用ページと同じ画面を埋め込む。管理者キーでそのまま使える） -->
+    <div class="card">
+      <h2>🚩 ブースの様子</h2>
+      <div class="sub" style="margin-bottom:8px">今の時刻の前後の枠の組（仮名・到着・スタート状況）。チェックインと「パーティが集まった」の代行ができます。
+        スタッフには、下のスタッフキーで <b>スタッフ用ページ</b>（<a href="staff.html" target="_blank">staff.html</a>）を使ってもらいます。</div>
+      <button class="sub-btn" id="boothToggle">表示する</button>
+      <a class="sub-btn" href="staff.html" target="_blank" style="display:inline-block;text-decoration:none">別のタブで開く ↗</a>
+      <iframe id="boothFrame" class="hidden" style="width:100%;height:640px;border:1px solid #ece8dc;border-radius:8px;margin-top:8px"></iframe>
+    </div>
+
+    <!-- スタッフキー -->
+    <div class="card">
+      <h2>🔑 スタッフキー</h2>
+      <div class="sub" style="margin-bottom:8px">スタッフ用ページだけで使うキーです（管理者キーとは別）。できるのは「ブースの様子を見る・チェックインの代行・パーティが集まったの代行」だけで、枠・マッチング・通知・クーポン・返金・ユーザー検索などはできません。
+        開催日ごとに発行し直したり、すぐ無効にしたりできます。キーは発行したときに<b>1回だけ</b>表示します。</div>
+      <div class="meta" id="staffKeyState">—</div>
+      <div class="row" style="align-items:flex-end">
+        <div><label>メモ（例：DAY1）</label><input type="text" id="staffKeyLabel" maxlength="30" /></div>
+        <div style="flex:0 0 auto;min-width:0"><button id="staffKeyIssue" style="margin:0">発行する／発行し直す</button></div>
+      </div>
+      <button class="sub-btn danger" id="staffKeyOff">無効にする</button>
+      <button class="sub-btn" id="staffKeyOn">有効に戻す</button>
+      <div class="result hidden" id="staffKeyShow"></div>
+      <div class="status" id="staffKeyStatus"></div>
+    </div>
+
+    <!-- ブースの流れの設定値 -->
+    <div class="card">
+      <h2>⏱ ブースの流れの設定</h2>
+      <div class="sub" style="margin-bottom:6px">チェックインの受付開始・「パーティが集まった」が押されないときの自動スタート・途中合流の受付時間。LINEの案内文にもこの値が入ります。</div>
+      <table class="b-table" style="max-width:520px">
+        <tr><th></th><th>通常の枠</th><th>テスト枠（30分）</th></tr>
+        <tr><td>受付開始（開始◯分前から）</td><td><input type="number" id="tm_normal_checkinOpenMin" min="0" max="60" /></td><td><input type="number" id="tm_test_checkinOpenMin" min="0" max="60" /></td></tr>
+        <tr><td>待機猶予（開始◯分後に自動スタート）</td><td><input type="number" id="tm_normal_graceMin" min="0" max="30" /></td><td><input type="number" id="tm_test_graceMin" min="0" max="30" /></td></tr>
+        <tr><td>途中合流（スタート後◯分まで）</td><td><input type="number" id="tm_normal_lateJoinMin" min="0" max="60" /></td><td><input type="number" id="tm_test_lateJoinMin" min="0" max="60" /></td></tr>
+      </table>
+      <button id="timingSave">保存する</button>
+      <div class="status" id="timingStatus"></div>
+    </div>
 
     <!-- イベント進行（自動アナウンス／不在対応）-->
     <div class="card">
@@ -594,6 +634,7 @@
       // クエストタブは開いたときに初回だけ読み込む（読み込まないと姫・ミッション・チカラが空になる）
       if (id === "tab-quest" && !questLoaded) loadQuestSettings();
       if (id === "tab-coupons") loadCodes();
+      if (id === "tab-ops") { loadTiming(); loadStaffKey(); }
     }
     document.querySelectorAll(".atab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
@@ -792,6 +833,56 @@
       }
     });
 
+    // ----- 🚩 ブースの様子（staff.html を埋め込む。同じ github.io なので管理者キーがそのまま使われる） -----
+    $("boothToggle").addEventListener("click", () => {
+      const f = $("boothFrame"), show = f.classList.contains("hidden");
+      if (show && !f.src) f.src = "staff.html?embed=1";
+      f.classList.toggle("hidden", !show);
+      $("boothToggle").textContent = show ? "隠す" : "表示する";
+    });
+
+    // ----- 🔑 スタッフキー -----
+    async function loadStaffKey(params) {
+      const r = await api("staffKeyStatus", params || {});
+      if (!r.ok) { set("staffKeyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      $("staffKeyState").innerHTML = !r.issued ? "まだ発行していません"
+        : (r.enabled ? '<span class="ok">✅ 有効</span>' : '<span class="ng">⛔ 無効</span>')
+          + "（" + esc(r.label || "メモなし") + "・" + esc(fmtDateTime(r.issuedAt)) + " 発行）";
+    }
+    $("staffKeyIssue").addEventListener("click", async () => {
+      const ok = await dangerConfirm({ title: "スタッフキーを発行", body: "新しいスタッフキーを発行します。前のキーは使えなくなります（スタッフ用ページから自動でログアウトされます）。",
+        target: "メモ：" + ($("staffKeyLabel").value || "なし"), confirmText: "発行する" });
+      if (!ok) return;
+      const r = await api("issueStaffKey", { label: $("staffKeyLabel").value });
+      if (!r.ok) { set("staffKeyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      $("staffKeyShow").innerHTML = '<div class="rhead">新しいスタッフキー（この画面でだけ表示します）</div>'
+        + '<div style="font-size:26px;font-weight:800;letter-spacing:.08em;font-family:monospace">' + esc(r.key) + '</div>'
+        + '<div class="meta">スタッフに直接伝えてください。LINEのグループなど、残る場所に貼るのは避けてください。</div>';
+      $("staffKeyShow").classList.remove("hidden");
+      set("staffKeyStatus", "✅ 発行しました", "ok");
+      loadStaffKey();
+    });
+    $("staffKeyOff").addEventListener("click", async () => {
+      const ok = await dangerConfirm({ title: "スタッフキーを無効にする", body: "スタッフ用ページがすぐに使えなくなります。", target: "スタッフキー", confirmText: "無効にする" });
+      if (ok) { await loadStaffKey({ enabled: "0" }); $("staffKeyShow").classList.add("hidden"); set("staffKeyStatus", "無効にしました", ""); }
+    });
+    $("staffKeyOn").addEventListener("click", async () => { await loadStaffKey({ enabled: "1" }); set("staffKeyStatus", "有効に戻しました", "ok"); });
+
+    // ----- ⏱ ブースの流れの設定 -----
+    const TM_KEYS = ["checkinOpenMin", "graceMin", "lateJoinMin"];
+    async function loadTiming() {
+      const r = await api("timingSettings", {});
+      if (!r.ok) { set("timingStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      for (const kind of ["normal", "test"]) for (const k of TM_KEYS) $("tm_" + kind + "_" + k).value = r.timing[kind][k];
+    }
+    $("timingSave").addEventListener("click", async () => {
+      const p = { save: "1" };
+      for (const kind of ["normal", "test"]) for (const k of TM_KEYS) p[kind + "_" + k] = String($("tm_" + kind + "_" + k).value);
+      const r = await api("timingSettings", p);
+      if (!r.ok) { set("timingStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      set("timingStatus", "✅ 保存しました（受付は開始" + r.timing.normal.checkinOpenMin + "分前から・自動スタートは開始" + r.timing.normal.graceMin + "分後・途中合流はスタートから" + r.timing.normal.lateJoinMin + "分まで）", "ok");
+    });
+
     // ----- ①+ 予約枠をまとめて作成 -----
     let bDates = [];          // 選んだ日付（YYYY-MM-DD・昇順）
     let bPlan = null;         // 確認した内容（入力を変えたら作り直す）
@@ -877,7 +968,9 @@
     });
     $("bCreateBtn").addEventListener("click", async () => {
       if (!bPlan) return;
-      if (!confirm($("bCreateBtn").textContent + "。よろしいですか？")) return;
+      const ok = await dangerConfirm({ title: "予約枠をまとめて作成", body: "次の内容で枠を作ります。作った枠は1枠ずつ削除できます。",
+        target: $("bStatus").textContent, confirmText: $("bCreateBtn").textContent.replace("この内容で ", "") });
+      if (!ok) return;
       $("bCreateBtn").disabled = true;
       set("bStatus", "作成中…", "");
       const r = await api("createSlotsBatch", batchParams(bPlan, false));

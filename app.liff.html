@@ -157,6 +157,26 @@
       border:none; border-radius:10px; cursor:pointer; }
     .confirm-card .cc-cancel { background:#eee7d6; color:var(--ink); }
     .confirm-card .cc-ok { background:var(--err); color:#fff; }
+    #confirmOverlay.safe .cc-title { color:var(--green); }
+    #confirmOverlay.safe .cc-ok { background:var(--green); }
+    #confirmOverlay.safe .cc-target { background:#fff6df; border-color:rgba(230,168,23,.5); }
+    /* 目印（画面いっぱい） */
+    #markOverlay { position:fixed; inset:0; z-index:160; display:flex; flex-direction:column; align-items:center;
+      justify-content:center; text-align:center; cursor:pointer; padding:24px; }
+    #markOverlay .mk-emoji { font-size:min(52vw, 260px); line-height:1.05; }
+    #markOverlay .mk-name { font-size:min(14vw, 64px); font-weight:900; margin-top:10px; letter-spacing:.04em; }
+    #markOverlay .mk-sub { font-size:18px; font-weight:700; margin-top:6px; opacity:.85; }
+    #markOverlay .mk-close { position:absolute; bottom:28px; font-size:13px; opacity:.75; }
+    .action-banner .ab-btn.go { background:var(--accent); }
+    .action-banner .ab-mark { width:100%; margin-top:8px; padding:9px; font-size:13px; font-weight:800; color:var(--green);
+      background:#fff; border:1.5px solid var(--green); border-radius:10px; cursor:pointer; font-family:inherit; }
+    .group-box .gmark { display:inline-block; margin-top:6px; padding:3px 12px; border-radius:99px; font-size:13px; font-weight:800;
+      background:rgba(255,255,255,.92); color:var(--ink); cursor:pointer; border:none; font-family:inherit; }
+    .gmember .gm-badge { font-size:11px; font-weight:700; margin-left:6px; color:var(--green); }
+    .gmember .gm-badge.away { color:#b9b3a3; }
+    .gmember .gm-badge.run { color:var(--accent); }
+    .m-wait { background:#fff6df; border:1.5px solid rgba(230,168,23,.5); border-radius:10px; padding:10px 12px;
+      font-size:13px; font-weight:700; color:#8a5e00; margin-bottom:10px; text-align:center; }
 
     /* 不成立カード */
     .unmatched-box { background:#fff6f5; border:1.5px solid #f0c9c5; border-radius:var(--radius);
@@ -637,6 +657,7 @@
       <div class="group-box hidden" id="groupBox">
         <div class="lead" id="groupLead">🎉 あなたのパーティが決まりました</div>
         <div class="gname" id="groupName">—</div>
+        <button type="button" class="gmark hidden" id="groupMark"></button>
         <div class="gsub" id="groupSlot"></div>
         <div class="group-members" id="groupMembers"></div>
         <div class="checkin-status" id="checkinStatus"></div>
@@ -902,6 +923,14 @@
   </div>
 
   <!-- 危険操作の2段階確認モーダル -->
+  <!-- 目印（画面いっぱい。タップで閉じる） -->
+  <div id="markOverlay" class="hidden">
+    <div class="mk-emoji" id="markEmoji">🐰</div>
+    <div class="mk-name" id="markName">うさぎ組</div>
+    <div class="mk-sub" id="markSub"></div>
+    <div class="mk-close">タップで閉じる</div>
+  </div>
+
   <div id="confirmOverlay" class="hidden">
     <div class="confirm-card">
       <div class="cc-title" id="ccTitle">確認</div>
@@ -1309,27 +1338,51 @@
       const endMs = g.endsAt ? Date.parse(g.endsAt) : null;
       let html = "";
 
+      const bth = g.booth || {};
       if (g.status === "waiting") {
+        const openMs = bth.checkinOpenAt ? Date.parse(bth.checkinOpenAt) : (startMs ? startMs - 5 * 60000 : null);
+        const openMin = bth.checkinOpenMin != null ? bth.checkinOpenMin : 5;
         if (!g.checkedIn) {
-          // 開始前・未チェックイン → 会場での受付。チェックインは開始10分前から
-          const openMs = startMs ? startMs - 10 * 60000 : null;
+          // 開始前・未チェックイン → 受付は開始◯分前から（それまでは会場を楽しんでもらう）
           const beforeWindow = openMs && now < openMs;
-          html = '<div class="ab-title">⏰ ' + (startMs ? fmtHM(startMs) + 'までに ' : '') + '会場で受付をしよう</div>' 
+          html = '<div class="ab-title">⏰ ' + (openMs ? fmtHM(openMs) + '（開始' + openMin + '分前）に' : '') + 'ブースへ集合</div>'
             + (beforeWindow
-              ? '<div class="ab-sub">🕐 チェックインは ' + fmtHM(openMs) + ' から（開始10分前）できます</div>'
-              : '<button class="ab-btn" id="abCheckinBtn">✋ 到着しました（チェックイン）</button>');
+              ? '<div class="ab-sub">開始' + openMin + '分前から受付できます。時間まで会場をお楽しみください。</div>'
+              : '<button class="ab-btn" id="abCheckinBtn">✋ 到着しました（チェックイン）</button>')
+            + markButtonHtml(g);
         } else {
-          // 開始前・チェックイン済み → 待つだけ
-          html = '<div class="ab-title">✅ チェックイン済み</div>'
-            + '<div class="ab-sub">全員そろうと自動でスタートします'
-            + (startMs ? '（遅くとも ' + fmtHM(startMs + (g.deadlineMin || 10) * 60000) + ' に開始）' : '') + '</div>';
+          // 開始前・チェックイン済み → 全員そろったら「パーティが集まった」
+          const need = bth.minToStart || 3;
+          const can = (g.arrived || 0) >= need;
+          html = '<div class="ab-title">✅ チェックイン済み（到着 ' + (g.arrived || 0) + '/' + (g.total || 0) + '人）</div>'
+            + '<div class="ab-sub">全員そろったら、だれか1人が押してね</div>'
+            + '<button class="ab-btn go" id="abStartBtn"' + (can ? '' : ' disabled') + '>🚩 パーティが集まった</button>'
+            + '<div class="ab-sub">' + (can ? '' : need + '人以上そろうと押せます。')
+            + (bth.autoStartAt ? '押さなくても ' + fmtHM(Date.parse(bth.autoStartAt)) + ' に' + need + '人以上いれば自動でスタートします' : '') + '</div>'
+            + markButtonHtml(g);
         }
+      } else if (g.status === "started" && bth.lateJoin) {
+        // スタート後にまだ合流していない人
+        html = bth.lateJoin.open
+          ? '<div class="ab-title">🏃 パーティは出発しました</div>'
+            + '<div class="ab-sub">チェックインすると、' + fmtHM(Date.parse(bth.lateJoin.until)) + ' まで途中から合流できます</div>'
+            + '<button class="ab-btn" id="abCheckinBtn">✋ 到着しました（チェックインして合流）</button>'
+          : '<div class="ab-title">⌛ 途中合流の受付時間を過ぎました</div>'
+            + '<div class="ab-sub">今回はパーティに合流できません。ご不明な点はブースのスタッフへ</div>';
       } else if (g.status === "started") {
         if (endMs && now >= endMs) {
           // 終了後 → クリアカード（記念画像の保存）の案内
           html = '<div class="ab-title">🎉 クエスト終了！おつかれさまでした</div>'
             + '<div class="ab-sub">クリアカードから記念画像を保存できるよ</div>'
             + (questData ? '<button class="ab-btn" id="abShareBtn">🎁 クリアカードを見る</button>' : '');
+        } else if (questData && questData.phase === "tutorial" && bth.lateJoined) {
+          // 途中から合流した人 → パーティのいる場所へ
+          const t = questData.tutorial || {};
+          html = '<div class="ab-label">途中から合流</div>'
+            + (t.destination
+              ? '<div class="ab-title">🚶 ' + esc(t.destination) + ' でパーティと合流しよう</div>'
+              : '<div class="ab-title">ブースでパーティと合流してください</div>')
+            + '<div class="ab-sub">合流したら、まだクリアしていないミッションを一緒にチェックしてね</div>' + markButtonHtml(g);
         } else if (questData && questData.phase === "tutorial") {
           // チュートリアル中 → 「今やること」は姫の救出ではなく目の前の4つ
           const t = questData.tutorial || {};
@@ -1366,6 +1419,49 @@
       box.classList.remove("hidden");
       const cb = $("abCheckinBtn"); if (cb) cb.onclick = doCheckinFromBanner;
       const sb = $("abShareBtn"); if (sb) sb.onclick = openShareCard;
+      const st = $("abStartBtn"); if (st) st.onclick = doStartParty;
+      box.querySelectorAll(".ab-mark").forEach((b) => { b.onclick = () => showMark(currentGroup); });
+    }
+
+    // ----- 目印（🐰 うさぎ組）：画面いっぱいに出して、ブースで掲げて集まる -----
+    function markButtonHtml(g) {
+      return g && g.mark ? '<button class="ab-mark" type="button">' + esc(g.mark.emoji) + ' 目印を出す（' + esc(g.mark.name) + '）</button>' : "";
+    }
+    function showMark(g) {
+      if (!g || !g.mark) return;
+      const o = $("markOverlay");
+      o.style.background = g.mark.color || "#3b6d4f";
+      // 明るい色の上は黒い文字、暗い色の上は白い文字
+      const hex = String(g.mark.color || "#000000").replace("#", "");
+      const lum = (parseInt(hex.slice(0, 2), 16) * 299 + parseInt(hex.slice(2, 4), 16) * 587 + parseInt(hex.slice(4, 6), 16) * 114) / 1000;
+      o.style.color = lum > 150 ? "#222" : "#fff";
+      $("markEmoji").textContent = g.mark.emoji;
+      $("markName").textContent = g.mark.name;
+      $("markSub").textContent = g.named ? g.name : "";
+      o.classList.remove("hidden");
+    }
+    $("markOverlay").addEventListener("click", () => $("markOverlay").classList.add("hidden"));
+
+    // 「パーティが集まった」：まだ来ていない人を見せて1回だけ確認
+    async function doStartParty() {
+      const g = currentGroup; if (!g) return;
+      const absent = (g.members || []).filter((m) => !m.checkedIn).map((m) => m.nickname + "さん");
+      const ok = await dangerConfirm({
+        title: "🚩 パーティが集まった",
+        body: absent.length
+          ? "まだ来ていない人がいます。スタートすると100分のクエストが始まります。来ていない人は、あとから途中で合流できます。"
+          : "全員そろいました。スタートすると100分のクエストが始まります。",
+        target: absent.length ? "まだ来ていない人：" + absent.join("・") : "",
+        confirmText: "スタートする", single: true, safe: true
+      });
+      if (!ok) return;
+      const b = $("abStartBtn"); if (b) { b.disabled = true; b.textContent = "スタート中…"; }
+      const r = await api("startParty", { lineUserId: profile.userId, slotId: currentGroupSlotId });
+      if (r.ok) { groupView = null; await renderGroupDetail(currentGroupSlotId); }
+      else {
+        setStatus("groupStatus", "⚠️ " + (r.error || "スタートできませんでした"), "ng");
+        if (b) { b.disabled = false; b.textContent = "🚩 パーティが集まった"; }
+      }
     }
 
     // 「集めたチカラ」ゲージ：次の姫までを満たす割合（全員救出後は満タン）
@@ -1818,8 +1914,10 @@
       });
     }
     // 危険操作の2段階確認モーダル（対象を明記・赤ボタン・2回タップで実行）
-    function dangerConfirm({ title, body, target, confirmText }) {
+    //   single: 1回押せば実行／safe: 赤くしない（取り消せない操作ではない確認用）
+    function dangerConfirm({ title, body, target, confirmText, single, safe }) {
       return new Promise((resolve) => {
+        $("confirmOverlay").classList.toggle("safe", !!safe);
         $("ccTitle").textContent = title || "確認";
         $("ccBody").textContent = body || "";
         $("ccTarget").textContent = target || "";
@@ -1836,7 +1934,7 @@
         };
         $("ccCancel").onclick = () => cleanup(false);
         $("ccOk").onclick = () => {
-          if (!armed) {
+          if (!armed && !single) {
             armed = true;
             $("ccStep").textContent = "⚠️ 取り消せません。もう一度押すと実行します。";
             $("ccOk").textContent = "本当に" + (confirmText || "削除する");
@@ -2116,6 +2214,17 @@
       });
 
       // クリア済みは下へまとめる（未クリアの並びは元のまま＝sortは安定ソート）
+      // スタート前（「パーティが集まった」を押す前）は押せない
+      const notStarted = q.started === false;
+      // 途中合流の受付中で、まだ合流していない人も押せない
+      const notJoined = !!(currentGroup && currentGroup.booth && currentGroup.booth.lateJoin);
+      if (notStarted || notJoined) {
+        const w = document.createElement("div");
+        w.className = "m-wait";
+        w.textContent = notStarted ? "🚩「パーティが集まった」でスタートすると、チェックできるようになります"
+          : "チェックインしてパーティに合流すると、チェックできるようになります";
+        list.appendChild(w);
+      }
       const shown = all.map((m) => ({ m }))
         .filter((x) => missionTab === "all" || x.m.power === missionTab)
         .sort((a, b) => (a.m.cleared ? 1 : 0) - (b.m.cleared ? 1 : 0));
@@ -2148,7 +2257,7 @@
           + '</span></span>';
 
         // 「パーティの名前を決めよう」には名前の入力欄、「スタート宣言」には文例を添える
-        if (m.kind === "partyName" && !m.cleared) row.appendChild(buildPartyNameEditor(q));
+        if (m.kind === "partyName" && !m.cleared && !notStarted && !notJoined) row.appendChild(buildPartyNameEditor(q));
         if (m.kind === "declare" && !m.cleared) {
           const d = document.createElement("div");
           d.className = "m-declare"; d.textContent = (q.tutorial || {}).declare || "";
@@ -2157,7 +2266,8 @@
         if (m.kind === "partyName" || m.kind === "declare") row.style.flexWrap = "wrap";
 
         // クリア済み・ロック中は押せない（取り消すとチカラが減り、救出済みの姫が戻ってしまうため）
-        if (!m.cleared && !m.locked) {
+        if (notStarted || notJoined) row.style.opacity = ".55";
+        if (!m.cleared && !m.locked && !notStarted && !notJoined) {
           row.addEventListener("click", (e) => {
             if (e.target.closest(".m-name-edit")) return; // 名前の入力欄はチェックに反応させない
             toggleQuestMission(m.id, !m.mine, row);
@@ -2454,8 +2564,11 @@
     $("mcClose").addEventListener("click", () => $("memberOverlay").classList.add("hidden"));
 
     function renderGroup(g) {
-      // 自分たちで名前を付けたらそれを表示（未命名は連番の「パーティ1」）
-      $("groupName").textContent = g.name;
+      // 自分たちで名前を付けたらそれを表示（未命名は仮名の「うさぎ組」）。仮名の目印はずっと出す
+      $("groupName").textContent = g.mark && !g.named ? g.mark.emoji + " " + g.name : g.name;
+      const gm = $("groupMark");
+      gm.classList.toggle("hidden", !g.mark);
+      if (g.mark) { gm.textContent = (g.named ? g.mark.emoji + " " + g.mark.name + "　" : "") + "目印を出す ›"; gm.onclick = () => showMark(g); }
       // 命名後は名前がすぐ下に大きく出るので、発表用の見出しは消す
       $("groupLead").classList.toggle("hidden", !!g.named);
       $("groupSlot").textContent = formatSlot(g.date, g.time);
@@ -2465,8 +2578,11 @@
         const isMe = (m.nickname === (currentUser.nickname || ""));
         const row = document.createElement("div");
         row.className = "gmember" + (isMe ? " me" : "");
+        // 開始前は到着したか、合流した直後の人は「合流に向かっています」
+        const badge = m.joining ? '<span class="gm-badge run">🏃 合流に向かっています</span>'
+          : g.status === "waiting" ? (m.checkedIn ? '<span class="gm-badge">✅ 到着</span>' : '<span class="gm-badge away">まだ</span>') : "";
         row.innerHTML =
-          '<span class="gm-name">' + esc(m.nickname || "") + (m.minor ? " 👧" : "") + '</span>' +
+          '<span class="gm-name">' + esc(m.nickname || "") + (m.minor ? " 👧" : "") + badge + '</span>' +
           '<span class="gm-topic">' + esc(powerLabel(m.topic)) + ' ›</span>';
         row.addEventListener("click", () => openMemberProfile(m)); // タップでプロフィール表示
         box.appendChild(row);
