@@ -252,25 +252,13 @@
     .detail-head .growth-timer { margin:0; white-space:nowrap; font-size:13px; background:#fff6df;
       border:1px solid rgba(230,168,23,.45); border-radius:99px; padding:3px 10px; }
     #groupDetail > .share-btn { width:100%; margin:0 0 12px; }
-    /* 内訳は小さく1行だけ */
-    .q-breakdown { text-align:center; font-size:12px; color:var(--sub); margin:0 0 12px;
-      padding:6px 8px; background:#f7f4ea; border-radius:8px; }
-    /* 次の目標のバナーに入れる「集めたチカラ」ゲージ（常に見える位置） */
+    /* 次の目標のバナーに入れるチカラのゲージ（常に見える位置） */
     .action-banner .ab-gauge { margin-top:8px; }
     .action-banner .ab-gauge-head { display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:var(--sub); }
     .action-banner .ab-gauge .gauge { margin:4px 0 0; }
-    .q-breakdown span { display:inline-block; margin:0 5px; white-space:nowrap; }
-    .q-breakdown span.zero { opacity:.35; }
     /* ミッション一覧 */
     .missions { margin-top:16px; }
     .missions-title { font-size:13px; font-weight:700; text-align:center; color:var(--sub); margin-bottom:10px; }
-    /* チカラで絞り込むタブ（既定は「すべて」。タブを理解しなくても遊べる） */
-    .m-tabs { display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px;
-      -webkit-overflow-scrolling:touch; }
-    .m-tab { flex:0 0 auto; padding:7px 13px; border-radius:99px; border:1.5px solid #d9d4c6;
-      background:#fff; font-size:13px; font-weight:700; color:var(--sub); cursor:pointer; white-space:nowrap; }
-    .m-tab.active { background:var(--green); color:#fff; border-color:var(--green); }
-    .m-tab .mt-n { font-weight:500; opacity:.75; margin-left:3px; font-size:11px; }
     .m-empty { text-align:center; color:var(--sub); font-size:13px; padding:18px 8px; }
     .mission-item { display:flex; align-items:center; gap:10px; padding:11px 12px;
       border:1.5px solid #e3ddcd; border-radius:10px; margin-bottom:8px; cursor:pointer; font-size:14px; }
@@ -576,9 +564,9 @@
         </div>
       </div>
       <div class="field">
-        <label>いちばん伸ばしたいチカラ</label>
+        <label>フェスでいちばん楽しみなこと</label>
         <div class="select-wrap">
-          <!-- 選択肢は POWER_META（5つのチカラ）から作る。チカラの名前を差し替えればここも変わる -->
+          <!-- 選択肢は FUN_META から作る（サーバーの FUN_KEYS と同じキー） -->
           <select id="topic">
             <option value="">選択しない</option>
           </select>
@@ -593,7 +581,7 @@
       <div class="field">
         <label>リベシティのプロフィールURL（任意）</label>
         <input type="text" id="libeUrl" maxlength="120" placeholder="https://libecity.com/user_profile/…" autocomplete="off" />
-        <div class="hint">入力すると、同じパーティの仲間があなたのリベプロフィールを見られるよ（空欄でもOK・あとから追加/削除できます）</div>
+        <div class="hint">入力すると、同じパーティの仲間があなたのリベシティのプロフィールを見られるよ（空欄でもOK・あとから追加/削除できます）</div>
       </div>
       <button type="submit" class="submit" id="regBtn">この内容で登録する</button>
       <button type="button" class="back-btn hidden" id="regBackBtn" style="width:100%;margin-top:10px">戻る</button>
@@ -680,9 +668,6 @@
 
           <div class="missions">
             <div class="missions-title" id="missionsTitle">ミッション（パーティ全員のチェックでクリア）</div>
-            <div class="m-tabs" id="missionTabs"></div>
-            <!-- チカラの内訳（どのチカラが足りないか、ミッションを選ぶときに見られるように） -->
-            <div class="q-breakdown hidden" id="qBreakdown"></div>
             <div id="missionList"></div>
           </div>
         </div>
@@ -914,7 +899,7 @@
     <div class="member-card">
       <div class="mc-name" id="mcName">—</div>
       <div class="mc-row"><span class="mc-label">性別</span><span id="mcGender">—</span></div>
-      <div class="mc-row"><span class="mc-label">伸ばしたいチカラ</span><span id="mcTopic">—</span></div>
+      <div class="mc-row"><span class="mc-label">フェスの楽しみ</span><span id="mcTopic">—</span></div>
       <div class="mc-detail-label">フェスに来た理由</div>
       <div class="mc-detail" id="mcDetail">—</div>
       <button class="mc-libe hidden" id="mcLibe">🔗 リベシティのプロフィールを見る</button>
@@ -963,12 +948,12 @@
       <div class="sc-pers" id="scPers"></div>
       <div class="sc-line">━ 一緒に旅した仲間 ━</div>
       <div class="sc-members" id="scMembers"></div>
-      <div class="sc-mission" id="scMission">集めたチカラ 20 ⭐️</div>
+      <div class="sc-mission" id="scMission">レベル5・チカラ 20 ⭐️</div>
       <div class="sc-tag">#100分クエスト</div>
       <div class="sc-date" id="scDate"></div>
     </div>
     <div class="share-actions">
-      <button id="xShareBtn">リベでつぶやく</button>
+      <button id="xShareBtn">リベシティでつぶやく</button>
       <button id="dlBtn" class="dl">📸 記念画像を保存</button>
       <button id="closeShareBtn" class="close">閉じる</button>
     </div>
@@ -1140,17 +1125,17 @@
       // 既存値で埋める（編集時）／LINE名で埋める（新規時）
       $("nickname").value = currentUser ? (currentUser.nickname || "") : (profile.displayName || "");
       $("gender").value   = currentUser ? (currentUser.gender || "") : "";
-      // 「いちばん伸ばしたいチカラ」の選択肢を5つのチカラから作る（初回だけ）
+      // 「フェスでいちばん楽しみなこと」の選択肢を作る（初回だけ）
       const tsel = $("topic");
       if (tsel.options.length <= 1) {
-        POWER_ORDER.forEach((k) => {
+        FUN_ORDER.forEach((k) => {
           const o = document.createElement("option");
-          o.value = k; o.textContent = POWER_META[k].emoji + POWER_META[k].label;
+          o.value = k; o.textContent = FUN_META[k].emoji + FUN_META[k].label;
           tsel.appendChild(o);
         });
       }
-      // 旧プロフィールの「話題」（お金・投資など）はサーバー側で空にして返すので「選択しない」になる
-      tsel.value = currentUser && POWER_META[currentUser.topic] ? currentUser.topic : "";
+      // 旧プロフィールの値（お金・投資／伸ばしたいチカラ）はサーバー側で空にして返すので「選択しない」になる
+      tsel.value = currentUser && FUN_META[currentUser.topic] ? currentUser.topic : "";
       $("topicDetail").value = currentUser ? (currentUser.topicDetail || "") : "";
       // リベID保存済みならURLの形で見せる（クーポン連携で登録済みの人も自動で入る）
       $("libeUrl").value = (currentUser && currentUser.libeId) ? "https://libecity.com/user_profile/" + currentUser.libeId : "";
@@ -1394,23 +1379,15 @@
               : '<div class="ab-title">ブース前で ' + left + ' つのミッション</div>'
                 + '<div class="ab-sub">3つ終えると、ペンペン姫が行き先を教えてくれるよ</div>');
         } else if (questData && questData.next) {
-          // クエスト中 → 次の姫まであと何チカラか（最も行動を促す表示）＋集めたチカラのゲージ
+          // クエスト中 → いまのレベルと、次のレベルアップ（＝次の姫の救出）まであといくつか＋ゲージ
           const n = questData.next;
-          if (n.remaining > 0) {
-            html = '<div class="ab-label">次の目標</div>'
-              + '<div class="ab-title">あと ' + n.remaining + ' で ' + n.emoji + esc(n.name) + 'を救出！</div>'
-              + '<div class="ab-sub">' + (n.requireAllPowers ? '※5種類すべてのチカラが1つ以上必要です' : 'ミッションはパーティ全員のチェックでクリア') + '</div>';
-          } else if (n.requireAllPowers && n.missingPowers.length) {
-            const need = n.missingPowers.map((k) => POWER_META[k].emoji + POWER_META[k].label).join("・");
-            html = '<div class="ab-label">次の目標</div>'
-              + '<div class="ab-title">' + n.emoji + esc(n.name) + 'まであと少し！</div>'
-              + '<div class="ab-sub">' + need + ' のミッションをクリアしよう</div>';
-          } else {
-            html = '<div class="ab-title">' + n.emoji + esc(n.name) + 'を救出できる！</div>';
-          }
-          html += powerGaugeHtml(questData);
+          html = '<div class="ab-label">いま レベル' + (questData.level || 1) + '</div>'
+            + '<div class="ab-title">あと ' + n.remaining + ' でレベルアップ！</div>'
+            + '<div class="ab-sub">レベルアップすると ' + n.emoji + esc(n.name) + ' を救出。ミッションはパーティ全員のチェックでクリア</div>'
+            + powerGaugeHtml(questData);
         } else if (questData) {
-          html = '<div class="ab-title">🎉 4人の姫を全員救出！</div>' + powerGaugeHtml(questData);
+          html = '<div class="ab-label">レベル' + (questData.levelMax || 5) + '（MAX）</div>'
+            + '<div class="ab-title">🎉 ' + (questData.princesses || []).length + '人の姫を全員救出！</div>' + powerGaugeHtml(questData);
         }
       }
 
@@ -1464,12 +1441,13 @@
       }
     }
 
-    // 「集めたチカラ」ゲージ：次の姫までを満たす割合（全員救出後は満タン）
+    // チカラのゲージ：レベルごとに0から満タンへ（前のレベルの目標〜次のレベルの目標）。MAXなら満タン
     function powerGaugeHtml(q) {
-      const goal = q.next ? q.next.need : q.totalPower;
-      const pct = goal > 0 ? Math.min(100, Math.round(q.totalPower / goal * 100)) : 100;
-      return '<div class="ab-gauge"><div class="ab-gauge-head"><span>集めたチカラ</span><span>'
-        + q.totalPower + (q.next ? " / " + q.next.need : "") + '</span></div>'
+      const from = q.levelFrom || 0;
+      const to = q.next ? q.next.need : null;
+      const pct = to ? Math.max(0, Math.min(100, Math.round((q.totalPower - from) / Math.max(1, to - from) * 100))) : 100;
+      return '<div class="ab-gauge"><div class="ab-gauge-head"><span>チカラ（レベル' + (q.level || 1) + '）</span><span>'
+        + q.totalPower + (to ? " / " + to : "") + '</span></div>'
         + '<div class="gauge"><div class="gauge-fill" style="width:' + pct + '%"></div></div></div>';
     }
 
@@ -2005,16 +1983,16 @@
     let rescueQueue = [];   // 演出の待ち行列（複数同時救出に対応）
     let rescuePlaying = false;
 
-    // プロフィールの「いちばん伸ばしたいチカラ」の表示（5つのチカラ以外＝旧プロフィールの値は出さない）
-    const powerLabel = (k) => (POWER_META[k] ? POWER_META[k].emoji + POWER_META[k].label : "");
-    const POWER_META = {
-      save:    { emoji:"💰", label:"貯める" },
-      earn:    { emoji:"💪", label:"稼ぐ" },
-      grow:    { emoji:"📈", label:"増やす" },
-      protect: { emoji:"🛡", label:"守る" },
-      use:     { emoji:"🎁", label:"使う" }
+    // プロフィールの「フェスでいちばん楽しみなこと」の表示（選択肢以外＝旧プロフィールの値は出さない）
+    const FUN_META = {
+      stage: { emoji:"🎤", label:"ステージ" },
+      booth: { emoji:"🎪", label:"ブース巡り" },
+      food:  { emoji:"🍽", label:"グルメ" },
+      meet:  { emoji:"🤝", label:"仲間との交流" },
+      learn: { emoji:"📚", label:"学び" }
     };
-    const POWER_ORDER = ["save","earn","grow","protect","use"];
+    const FUN_ORDER = ["stage","booth","food","meet","learn"];
+    const powerLabel = (k) => (FUN_META[k] ? FUN_META[k].emoji + FUN_META[k].label : "");   // 名前は旧来のまま（呼び出し元が多いため）
     const stars = (n) => "⭐".repeat(Math.max(1, Math.min(3, n || 1)));
 
     async function loadQuest(slotId) {
@@ -2080,24 +2058,14 @@
         + '<div class="qp-name">' + (p.rescued ? esc(p.name) : "？？？") + '</div></div>'
       ).join("");
 
-      // 内訳は小さく1行（ミッションタブの絞り込みの下。本編に入ってから出す）
-      $("qBreakdown").classList.toggle("hidden", q.phase !== "main");
-      $("qBreakdown").innerHTML = "チカラの内訳 " + POWER_ORDER.map((k) => {
-        const v = (q.powers || {})[k] || 0;
-        return '<span class="' + (v ? "" : "zero") + '">' + POWER_META[k].emoji + v + '</span>';
-      }).join("");
-
       // チュートリアル中は姫の声と進み具合を出す
       renderTutorial(q);
 
       // ミッション（タブで絞り込み。チュートリアル中は種類が少ないのでタブは出さない）
       const tut = (q.phase === "tutorial");
-      $("missionTabs").classList.toggle("hidden", tut);
       $("missionsTitle").textContent = tut
         ? "チュートリアル（パーティ全員のチェックでクリア）"
         : "ミッション（パーティ全員のチェックでクリア）";
-      if (tut) missionTab = "all";
-      else renderMissionTabs(q);
       renderMissionList(q);
 
       renderGarden(q);
@@ -2178,26 +2146,6 @@
         : "まずはこの" + target.length + "つから（" + done + "/" + target.length + "）";
     }
 
-    // ----- ミッションのタブ（すべて／チカラ5種）-----
-    let missionTab = "all"; // 既定は「すべて」＝タブを理解しなくても遊べる
-    function renderMissionTabs(q) {
-      const tabs = $("missionTabs");
-      const ms = q.missions || [];
-      const defs = [{ key:"all", label:"すべて" }].concat(
-        POWER_ORDER.map((k) => ({ key:k, label:POWER_META[k].emoji + POWER_META[k].label })));
-      tabs.innerHTML = "";
-      defs.forEach((d) => {
-        const items = d.key === "all" ? ms : ms.filter((m) => m.power === d.key);
-        if (d.key !== "all" && !items.length) return; // その種類のミッションが無ければタブも出さない
-        const left = items.filter((m) => !m.cleared).length; // 残り数（選ぶ判断材料）
-        const b = document.createElement("button");
-        b.className = "m-tab" + (missionTab === d.key ? " active" : "");
-        b.innerHTML = d.label + '<span class="mt-n">' + left + '</span>';
-        b.onclick = () => { missionTab = d.key; renderMissionTabs(q); renderMissionList(q); };
-        tabs.appendChild(b);
-      });
-    }
-
     // クリア済みと分かったミッションのID。次の描画で「今クリアした1件」を光らせるために使う
     let clearedSeen = null;
     function renderMissionList(q) {
@@ -2226,9 +2174,8 @@
         list.appendChild(w);
       }
       const shown = all.map((m) => ({ m }))
-        .filter((x) => missionTab === "all" || x.m.power === missionTab)
         .sort((a, b) => (a.m.cleared ? 1 : 0) - (b.m.cleared ? 1 : 0));
-      if (!shown.length) { list.innerHTML = '<div class="m-empty">このチカラのミッションはありません</div>'; return; }
+      if (!shown.length) { list.innerHTML = '<div class="m-empty">ミッションはありません</div>'; return; }
 
       const doneCount = shown.filter((x) => x.m.cleared).length;
       let dividerDone = false;
@@ -2247,11 +2194,10 @@
         row.className = "mission-item"
           + (m.locked ? " locked" : (m.cleared ? " done" : (m.mine ? " mine" : "")))
           + (justDone.has(m.id) ? " just-done" : "");
-        const pm = POWER_META[m.power] || { emoji:"", label:"" };
         row.innerHTML =
           '<span class="box">' + (m.cleared ? "✓" : (m.mine ? "・" : (m.locked ? "🔒" : ""))) + '</span>'
-          + '<span class="m-body"><span class="m-name">' + pm.emoji + " " + esc(m.name) + '</span>'
-          + '<span class="m-meta">' + stars(m.stars) + " " + pm.label + "＋" + m.stars
+          + '<span class="m-body"><span class="m-name">' + esc(m.name) + '</span>'
+          + '<span class="m-meta">' + stars(m.stars) + " チカラ＋" + m.stars
           + (m.locked ? "　🐧 3つ終えると行き先が分かる"
              : (m.cleared ? "　✅クリア！" : "　" + m.checkedCount + "/" + m.memberCount + "人がチェック"))
           + '</span></span>';
@@ -2444,7 +2390,7 @@
       $("scGrown").textContent = n >= 4 ? "4人の姫を全員救出した！" : n + "人の姫を救出した！";
       $("scPers").textContent = "";
       $("scMembers").textContent = (q.memberNicknames || []).join(" / ");
-      $("scMission").textContent = "集めたチカラ " + q.totalPower + " ⭐️";
+      $("scMission").textContent = "レベル" + (q.level || 1) + "・チカラ " + q.totalPower + " ⭐️";
       $("scDate").textContent = fmtCardDate(q.date);
       $("shareOverlay").classList.remove("hidden");
     }
@@ -2454,7 +2400,7 @@
     $("xShareBtn").addEventListener("click", async () => {
       const q = questData; if (!q) return;
       const text = rescuedEmojis(q) + " 100分クエストで" + (q.rescued || []).length +
-        "人の姫を救出！ チカラ" + q.totalPower + "を集めたよ✨ #100分クエスト";
+        "人の姫を救出！ レベル" + (q.level || 1) + "まで上がったよ✨ #100分クエスト";
       let copied = false;
       try { await navigator.clipboard.writeText(text); copied = true; } catch (e) {}
       if (copied) alert("つぶやき文をコピーしました📋\nリベシティで貼り付けてつぶやいてね！");
@@ -2483,7 +2429,7 @@
       ctx.fillStyle = "#2b2b28"; ctx.font = "bold 24px sans-serif";
       wrapText(ctx, (q.memberNicknames || []).join(" / "), W / 2, 550, W - 80, 32);
       ctx.fillStyle = "#e6a817"; ctx.font = "bold 24px sans-serif";
-      ctx.fillText("集めたチカラ " + q.totalPower + " ⭐️", W / 2, 660);
+      ctx.fillText("レベル" + (q.level || 1) + "・チカラ " + q.totalPower + " ⭐️", W / 2, 660);
       ctx.fillStyle = "#2f6d4f"; ctx.font = "bold 26px sans-serif"; ctx.fillText("#100分クエスト", W / 2, 710);
       ctx.fillStyle = "#6b6b63"; ctx.font = "20px sans-serif"; ctx.fillText(fmtCardDate(q.date), W / 2, 745);
       saveMemorialImage(cv, "100quest_" + (q.date || "result") + ".png");

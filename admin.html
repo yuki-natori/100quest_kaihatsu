@@ -164,7 +164,7 @@
           合計が条件に届くと姫を救出します。
         </div>
 
-        <!-- 現在のバランス（チカラごとの合計と、最後の姫に届くか）-->
+        <!-- 現在のバランス（チカラの満点と、最後の姫に届くか）-->
         <div id="questSummary" class="q-summary"></div>
 
         <div class="q-sec">
@@ -1142,12 +1142,9 @@
         ).join("");
         // クエストの進捗（チカラ合計・救出した姫）
         const hasQuest = (typeof g.totalPower === "number");
-        const pw = g.powers || {};
         const pwLine = hasQuest
-          ? "<div class='gmeta'>⚡ チカラ " + esc(g.totalPower) +
-            "　／　救出 " + esc((g.rescued || []).length) + "人 " + esc(g.rescuedEmojis || "") +
-            "　／　💰" + esc(pw.save || 0) + " 💪" + esc(pw.earn || 0) + " 📈" + esc(pw.grow || 0) +
-            " 🛡" + esc(pw.protect || 0) + " 🎁" + esc(pw.use || 0) + "</div>"
+          ? "<div class='gmeta'>⚡ レベル" + esc((g.rescued || []).length + 1) + "（チカラ " + esc(g.totalPower) + "）" +
+            "　／　救出 " + esc((g.rescued || []).length) + "人 " + esc(g.rescuedEmojis || "") + "</div>"
           : "";
         // プレイヤーが名前を付けたら「〇〇（パーティ1）」と両方出す（管理側の識別用に連番を残す）
         const title = g.partyName ? esc(g.partyName) + "（" + esc(g.name) + "）" : esc(g.name);
@@ -1582,8 +1579,8 @@
     $("reloadRefunds").addEventListener("click", loadRefunds);
 
     // ----- ⑨ ユーザー検索 -----
-    // プロフィールの「いちばん伸ばしたいチカラ」（アプリの POWER_META と同じ）
-    const PROFILE_POWER = { save: "💰貯める", earn: "💪稼ぐ", grow: "📈増やす", protect: "🛡守る", use: "🎁使う" };
+    // プロフィールの「フェスでいちばん楽しみなこと」（アプリの FUN_META と同じ）。名前は旧来のまま
+    const PROFILE_POWER = { stage: "🎤ステージ", booth: "🎪ブース巡り", food: "🍽グルメ", meet: "🤝仲間との交流", learn: "📚学び" };
     async function searchUsers() {
       const q = $("usQuery").value.trim();
       if (!q) { set("usStatus", "ニックネーム か LINEユーザーIDを入力してください", "ng"); return; }
@@ -1621,7 +1618,7 @@
           '<div class="title">' + esc(u.nickname || "(名前なし)") +
           '<span class="pill">' + esc([u.gender, PROFILE_POWER[u.topic]].filter(Boolean).join("・") || "プロフィール未設定") + '</span></div>' +
           (u.topicDetail ? '<div class="meta">フェスに来た理由：' + esc(u.topicDetail) + '</div>' : '') +
-          '<div class="meta">' + esc(u.lineUserId) + (u.libeId ? "　／　リベID: " + esc(u.libeId) : "") + '</div>' +
+          '<div class="meta">' + esc(u.lineUserId) + (u.libeId ? "　／　リベシティID: " + esc(u.libeId) : "") + '</div>' +
           resvHtml + cpHtml;
         box.appendChild(div);
       });
@@ -1637,7 +1634,7 @@
     let questDirty   = false;  // 未保存の変更があるか
     let missionFilter = "all"; // ミッション一覧の絞り込み（チカラの種類）
 
-    // サーバーから取得できなかった場合の保険（5つのチカラはコード側の定義と同じ順・同じキー）
+    // サーバーから取得できなかった場合の保険（チカラの種類は画面に出さなくなったが、データの既定値として残す）
     const POWER_FALLBACK = [
       { key: "save",    emoji: "💰", label: "貯める" },
       { key: "earn",    emoji: "💪", label: "稼ぐ" },
@@ -1676,13 +1673,10 @@
       $("saveAllQuestBtn").textContent = questDirty ? "保存する（未保存）" : "保存する";
     }
 
-    // 現在のバランス。チカラごとの合計⭐と、最後の姫に届くかを表示する
+    // 現在のバランス。チカラの満点（⭐の合計）と、最後の姫に届くかを表示する
+    //   チカラは1種類（2026-10-01〜。フェスの二次創作ガイドラインで「5つの力」を想起させる作りをやめた）
     function renderQuestSummary() {
-      const per = {}; powerList().forEach((p) => { per[p.key] = 0; });
-      questTutorial.concat(questMissions).forEach((m) => {
-        if (per[m.power] !== undefined) per[m.power] += (Number(m.stars) || 0);
-      });
-      const total = powerList().reduce((s, p) => s + per[p.key], 0);
+      const total = questTutorial.concat(questMissions).reduce((s, m) => s + (Number(m.stars) || 0), 0);
       const tutTotal = questTutorial.reduce((s, m) => s + (Number(m.stars) || 0), 0);
       const maxNeed = questPrincesses.length
         ? Math.max(...questPrincesses.map((p) => Number(p.need) || 0)) : 0;
@@ -1703,9 +1697,6 @@
       $("questSummary").innerHTML =
         '<span class="qs-main">チュートリアル ' + questTutorial.length + '件（⭐' + tutTotal + '）／ ' +
         'ミッション ' + questMissions.length + '件 ／ 満点 ⭐' + total + '</span>' +
-        powerList().map((p) =>
-          '<span class="qs-p' + (per[p.key] ? '' : ' zero') + '">' +
-          esc(p.emoji) + esc(p.label) + ' ' + per[p.key] + '</span>').join("") +
         line;
     }
 
@@ -1719,9 +1710,7 @@
         d.innerHTML =
           '<span class="qp-name">' + esc(p.emoji) + " " + esc(p.name) + '</span>' +
           '<input type="number" min="1" id="qp_need_' + i + '" value="' + esc(p.need) + '" />' +
-          '<span class="qp-unit">チカラで救出</span>' +
-          '<label class="qp-all"><input type="checkbox" id="qp_all_' + i + '"' +
-          (p.requireAllPowers ? ' checked' : '') + ' />5種すべて1つ以上</label>';
+          '<span class="qp-unit">チカラで救出（レベル' + (i + 1) + '→' + (i + 2) + '）</span>';
         box.appendChild(d);
       });
       renderQuestSummary();
@@ -1736,10 +1725,6 @@
         d.className = "q-mrow";
         d.innerHTML =
           '<input type="text" class="qm-name" maxlength="60" id="qt_name_' + i + '" value="' + esc(m.name) + '" />' +
-          '<select class="qm-power" id="qt_power_' + i + '">' +
-            powerList().map((p) => '<option value="' + esc(p.key) + '"' +
-              (p.key === m.power ? ' selected' : '') + '>' + esc(p.emoji) + " " + esc(p.label) + '</option>').join("") +
-          '</select>' +
           '<select class="qm-stars" id="qt_stars_' + i + '">' +
             [1, 2, 3].map((n) => '<option value="' + n + '"' + (n === m.stars ? ' selected' : '') + '>' +
               "⭐".repeat(n) + '</option>').join("") +
@@ -1753,7 +1738,7 @@
         id:    m.id,
         kind:  m.kind,
         name:  ($("qt_name_"  + i) ? $("qt_name_"  + i).value.trim() : m.name),
-        power: ($("qt_power_" + i) ? $("qt_power_" + i).value : m.power),
+        power: m.power,   // 種類は使わない（保存されている値をそのまま残す）
         stars: ($("qt_stars_" + i) ? parseInt($("qt_stars_" + i).value, 10) : m.stars)
       }));
     }
@@ -1780,14 +1765,10 @@
       renderQuestSummary();
       renderQuestBar();
     }
+    // チカラの種類で絞り込むボタン（種類をやめたので出さない）
     function renderMissionFilter() {
-      const counts = {};
-      questMissions.forEach((m) => { counts[m.power] = (counts[m.power] || 0) + 1; });
-      const btns = [{ key: "all", emoji: "", label: "すべて", n: questMissions.length }]
-        .concat(powerList().map((p) => ({ key: p.key, emoji: p.emoji, label: p.label, n: counts[p.key] || 0 })));
-      $("missionFilter").innerHTML = btns.map((b) =>
-        '<button class="q-fbtn' + (missionFilter === b.key ? ' active' : '') + '" data-f="' + esc(b.key) + '">' +
-        esc(b.emoji) + esc(b.label) + ' ' + b.n + '</button>').join("");
+      missionFilter = "all";
+      $("missionFilter").innerHTML = "";
     }
     function renderMissionList() {
       const ml = $("questMissionList"); ml.innerHTML = "";
@@ -1807,10 +1788,6 @@
         d.innerHTML =
           '<input type="text" class="qm-name" maxlength="60" placeholder="ミッション名" ' +
             'id="qm_name_' + i + '" value="' + esc(m.name) + '" />' +
-          '<select class="qm-power" id="qm_power_' + i + '">' +
-            powerList().map((p) => '<option value="' + esc(p.key) + '"' +
-              (p.key === m.power ? ' selected' : '') + '>' + esc(p.emoji) + " " + esc(p.label) + '</option>').join("") +
-          '</select>' +
           '<select class="qm-stars" id="qm_stars_' + i + '">' +
             [1, 2, 3].map((n) => '<option value="' + n + '"' + (n === m.stars ? ' selected' : '') + '>' +
               "⭐".repeat(n) + '</option>').join("") +
@@ -1825,7 +1802,7 @@
       questMissions = questMissions.map((m, i) => ({
         id:    m.id,
         name:  ($("qm_name_"  + i) ? $("qm_name_"  + i).value.trim() : m.name),
-        power: ($("qm_power_" + i) ? $("qm_power_" + i).value : m.power),
+        power: m.power,   // 種類は使わない（保存されている値をそのまま残す）
         stars: ($("qm_stars_" + i) ? parseInt($("qm_stars_" + i).value, 10) : m.stars)
       }));
     }
@@ -1853,8 +1830,7 @@
 
     $("addMissionBtn").addEventListener("click", () => {
       syncMissionInputs();
-      const power = (missionFilter === "all") ? powerList()[0].key : missionFilter;
-      questMissions.push({ id: "", name: "", power: power, stars: 1 });
+      questMissions.push({ id: "", name: "", power: "earn", stars: 1 });   // 種類は使わない（内部の既定値）
       markQuestDirty();
       renderMissionEditor();
       const el = $("qm_name_" + (questMissions.length - 1));
@@ -1874,7 +1850,7 @@
       const princesses = questPrincesses.map((p, i) => ({
         id: p.id,
         need: ($("qp_need_" + i) ? parseInt($("qp_need_" + i).value, 10) : p.need),
-        requireAllPowers: ($("qp_all_" + i) ? $("qp_all_" + i).checked : !!p.requireAllPowers)
+        requireAllPowers: false
       }));
       if (princesses.some((p) => !Number.isFinite(p.need) || p.need < 1)) {
         set("questStatus", "姫の「必要なチカラ」は1以上の数値で入力してください", "ng"); return;
