@@ -665,10 +665,10 @@
         <div class="quest-box" id="missionPane">
           <div class="q-party" id="qParty">—<small id="qPartySub"></small></div>
 
-          <!-- ⑫チュートリアル：救出前のペンペン姫はシルエットで声だけ -->
+          <!-- ⑫チュートリアル：救出前の最初の姫はシルエットで声だけ（絵文字はサーバーの姫の定義から入れる） -->
           <div class="tut-box hidden" id="tutBox">
             <div class="tut-head">
-              <div class="tut-face" id="tutFace">🐧</div>
+              <div class="tut-face" id="tutFace"></div>
               <div class="tut-voice" id="tutVoice"></div>
             </div>
             <div class="tut-step" id="tutStep"></div>
@@ -942,8 +942,8 @@
   <div id="rescueOverlay" class="hidden">
     <div class="rescue-burst" id="rescueBurst"></div>
     <button class="rescue-skip" id="rescueSkip">スキップ ▶</button>
-    <div class="rescue-face" id="rescueFace">🐧</div>
-    <div class="rescue-title" id="rescueTitle">ペンペン姫を救出した！</div>
+    <div class="rescue-face" id="rescueFace"></div>
+    <div class="rescue-title" id="rescueTitle"></div>
     <div class="rescue-say" id="rescueSay"></div>
     <button class="rescue-btn" id="rescueNext">つづける</button>
   </div>
@@ -952,7 +952,7 @@
   <div id="shareOverlay" class="hidden">
     <div class="share-card" id="shareCard">
       <div class="sc-head" id="scHead">クエスト達成！</div>
-      <div class="sc-animal" id="scAnimal">🐧🐬🐼🐯</div>
+      <div class="sc-animal" id="scAnimal"></div>
       <div class="sc-grown" id="scGrown">4人の姫を救出した！</div>
       <div class="sc-pers" id="scPers"></div>
       <div class="sc-line">━ 一緒に旅した仲間 ━</div>
@@ -1395,7 +1395,7 @@
           html = t.arrived
             ? '<div class="ab-label">移動先に到着</div>'
               + '<div class="ab-title">🧊 みんなのことを知ろう（あと' + left + 'つ）</div>'
-              + '<div class="ab-sub">全員でクリアすると、ペンペン姫を救い出せるよ</div>'
+              + '<div class="ab-sub">全員でクリアすると、' + esc(firstPrincessName(questData)) + 'を救い出せるよ</div>'
             : '<div class="ab-label">まずは移動</div>'
               + '<div class="ab-title">🚶 ' + esc(t.destination || "移動先") + ' へ全員で移動しよう</div>'
               + '<div class="ab-sub">' + (t.walkHint ? esc(t.walkHint) + "。" : "") + '着いたら「移動」を全員でチェックしてね</div>';
@@ -1406,9 +1406,9 @@
           html = '<div class="ab-label">まずはチュートリアル</div>'
             + (t.destination
               ? '<div class="ab-title">🚶 ' + esc(t.destination) + ' へ全員で移動しよう</div>'
-                + '<div class="ab-sub">ペンペン姫はそこにいる。着いたらチェックしてね</div>'
+                + '<div class="ab-sub">' + esc(firstPrincessName(questData)) + 'はそこにいる。着いたらチェックしてね</div>'
               : '<div class="ab-title">ブース前で ' + left + ' つのミッション</div>'
-                + '<div class="ab-sub">3つ終えると、ペンペン姫が行き先を教えてくれるよ</div>');
+                + '<div class="ab-sub">3つ終えると、' + esc(firstPrincessName(questData)) + 'が行き先を教えてくれるよ</div>');
         } else if (questData && questData.next) {
           // クエスト中 → いまのレベルと、次のレベルアップ（＝次の姫の救出）まであといくつか＋ゲージ
           const n = questData.next;
@@ -2118,13 +2118,9 @@
     }
 
     // ----- 姫たちタブ：救出した姫たちの庭（以前のたまごっち画面を流用。イラストができたら差し替える）-----
-    // 鳴き声（ひとこと）。姫ごとに口ぐせを変える。手書き風の文字でふわっと浮かんで消える
-    const PRINCESS_CRIES = {
-      penpen:  ["ペンッ", "ぺんぺん！", "ぺたぺた"],
-      mairuka: ["キュイッ", "きゅいきゅい", "ぱしゃっ"],
-      pannu:   ["もぐもぐ…", "ふわぁ", "のんびり〜"],
-      amutora: ["ガオッ", "ふふっ", "がんばれ！"]
-    };
+    // 鳴き声（ひとこと）。姫ごとの口ぐせはサーバーの姫の定義（cries）から来る。手書き風の文字でふわっと浮かんで消える
+    // 姫の名前・絵文字・セリフもすべてサーバーの定義から読む（差し替えはサーバーの1か所で済む）
+    const firstPrincessName = (q) => (((q && q.princesses) || [])[0] || {}).name || "最初の姫";
     let gardenKey = "";
     function renderGarden(q) {
       const got = (q.princesses || []).filter((p) => p.rescued);
@@ -2149,7 +2145,8 @@
       const box = $("princessCry");
       const tr = $("terrarium");
       if (!el || !box || !tr || $("progressPane").classList.contains("hidden")) return;
-      const words = PRINCESS_CRIES[el.dataset.id] || ["♪"];
+      const p = ((questData && questData.princesses) || []).find((x) => x.id === el.dataset.id);
+      const words = (p && p.cries && p.cries.length) ? p.cries : ["♪"];
       box.textContent = words[Math.floor(Math.random() * words.length)];
       const r = el.getBoundingClientRect(), t = tr.getBoundingClientRect();
       box.style.left = Math.min(85, Math.max(15, ((r.left + r.width * 0.75 - t.left) / t.width) * 100)) + "%";
@@ -2170,13 +2167,14 @@
     }
     function stopPrincessCry() { if (princessCryInterval) { clearInterval(princessCryInterval); princessCryInterval = null; } }
 
-    // ----- チュートリアル（ペンペン姫の声＋進み具合）-----
+    // ----- チュートリアル（最初の姫の声＋進み具合）-----
     function renderTutorial(q) {
       const box = $("tutBox");
       const t = q.tutorial || {};
       if (q.phase !== "tutorial") { box.classList.add("hidden"); return; }
       box.classList.remove("hidden");
       $("tutVoice").textContent = t.voice || "";
+      $("tutFace").textContent = ((q.princesses || [])[0] || {}).emoji || "❔";   // 救出前はシルエット（CSS）
       const ms = q.missions || [];
       if (t.flow === "moveFirst") {
         const done = ms.filter((m) => m.cleared).length;
@@ -2245,7 +2243,7 @@
           '<span class="box">' + (m.cleared ? "✓" : (m.mine ? "・" : (m.locked ? "🔒" : ""))) + '</span>'
           + '<span class="m-body"><span class="m-name">' + esc(m.name) + '</span>'
           + '<span class="m-meta">' + stars(m.stars) + " チカラ＋" + m.stars
-          + (m.locked ? ((q.tutorial || {}).flow === "moveFirst" ? "　🚶 移動先に着いたら押せる" : "　🐧 3つ終えると行き先が分かる")
+          + (m.locked ? ((q.tutorial || {}).flow === "moveFirst" ? "　🚶 移動先に着いたら押せる" : "　🔒 3つ終えると行き先が分かる")
              : (m.cleared ? "　✅クリア！" : "　" + m.checkedCount + "/" + m.memberCount + "人がチェック"))
           + '</span></span>';
 

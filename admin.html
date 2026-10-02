@@ -174,7 +174,7 @@
         </div>
 
         <div class="q-sec">
-          <div class="q-sec-h">🐧 チュートリアル<span class="q-note">移動1つ＋移動先でのアイスブレイク3つ／合計＝ペンペン姫の条件になるように</span></div>
+          <div class="q-sec-h">🧭 チュートリアル<span class="q-note">移動1つ＋移動先でのアイスブレイク3つ／合計＝最初の姫の条件になるように</span></div>
           <div class="sub" style="font-size:12px; margin:-4px 0 10px">
             行の追加・削除・並べ替えはできません（名前の入力欄や目的地の仕掛けが各行に紐づいているため）。
             スタートした時点で移動先を出し、<b>移動を全員でチェックするまで残りの3つは押せません</b>（ブースではチュートリアルをしない）。
@@ -1178,7 +1178,7 @@
           (g.members || []).length + "人" +
           (g.destination ? "　／　🚶 移動先 " + esc(g.destination) : "") +
           (g.partyMix ? "　／　👑 " + esc(g.partyMix) : "") +
-          (g.tutorialDone === true ? "　／　🐧 チュートリアル完了" : "") + "</div>" +
+          (g.tutorialDone === true ? "　／　🧭 チュートリアル完了" : "") + "</div>" +
           pwLine +
           "<div>" + chips + "</div></div>";
       }).join("");
@@ -1195,7 +1195,7 @@
         if (typeof r.missionCount === "number") {
           head += "🏰 ミッション " + r.missionCount + "件を適用" +
             (r.missionsCustom ? "（管理画面で編集したもの）" : "（コードの既定）") +
-            "　／　🐧 チュートリアル " + (r.tutorialCount || 0) + "件<br>" +
+            "　／　🧭 チュートリアル " + (r.tutorialCount || 0) + "件<br>" +
             (r.destinationCount
               ? "🚶 移動先 " + r.destinationCount + "地点を順繰りに割り当て<br>"
               : '<span class="ng">⚠️ 📍集合場所が0件です。全パーティが「スタート地点」と表示され、混雑します</span><br>') +
