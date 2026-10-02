@@ -1388,8 +1388,19 @@
               ? '<div class="ab-title">🚶 ' + esc(t.destination) + ' でパーティと合流しよう</div>'
               : '<div class="ab-title">ブースでパーティと合流してください</div>')
             + '<div class="ab-sub">合流したら、まだクリアしていないミッションを一緒にチェックしてね</div>' + markButtonHtml(g);
+        } else if (questData && questData.phase === "tutorial" && (questData.tutorial || {}).flow === "moveFirst") {
+          // チュートリアル中（新しい流れ）→ まず移動先へ。着いたらアイスブレイク
+          const t = questData.tutorial || {};
+          const left = (questData.missions || []).filter((m) => !m.cleared).length;
+          html = t.arrived
+            ? '<div class="ab-label">移動先に到着</div>'
+              + '<div class="ab-title">🧊 みんなのことを知ろう（あと' + left + 'つ）</div>'
+              + '<div class="ab-sub">全員でクリアすると、ペンペン姫を救い出せるよ</div>'
+            : '<div class="ab-label">まずは移動</div>'
+              + '<div class="ab-title">🚶 ' + esc(t.destination || "移動先") + ' へ全員で移動しよう</div>'
+              + '<div class="ab-sub">' + (t.walkHint ? esc(t.walkHint) + "。" : "") + '着いたら「移動」を全員でチェックしてね</div>';
         } else if (questData && questData.phase === "tutorial") {
-          // チュートリアル中 → 「今やること」は姫の救出ではなく目の前の4つ
+          // チュートリアル中（作り替え前にマッチングしたパーティ）→ 目の前の4つ
           const t = questData.tutorial || {};
           const left = (questData.missions || []).filter((m) => !m.cleared).length;
           html = '<div class="ab-label">まずはチュートリアル</div>'
@@ -2167,6 +2178,13 @@
       box.classList.remove("hidden");
       $("tutVoice").textContent = t.voice || "";
       const ms = q.missions || [];
+      if (t.flow === "moveFirst") {
+        const done = ms.filter((m) => m.cleared).length;
+        $("tutStep").textContent = t.arrived
+          ? "🧊 みんなのことを知ろう（" + done + "/" + ms.length + "）"
+          : "🚶 " + (t.destination || "移動先") + "へ向かおう（" + done + "/" + ms.length + "）";
+        return;
+      }
       // 行き先が出るまではロック中の移動を数に入れない（「3つ」と「0/4」が食い違わないように）
       const target = t.destination ? ms : ms.filter((m) => !m.locked);
       const done = target.filter((m) => m.cleared).length;
@@ -2227,18 +2245,24 @@
           '<span class="box">' + (m.cleared ? "✓" : (m.mine ? "・" : (m.locked ? "🔒" : ""))) + '</span>'
           + '<span class="m-body"><span class="m-name">' + esc(m.name) + '</span>'
           + '<span class="m-meta">' + stars(m.stars) + " チカラ＋" + m.stars
-          + (m.locked ? "　🐧 3つ終えると行き先が分かる"
+          + (m.locked ? ((q.tutorial || {}).flow === "moveFirst" ? "　🚶 移動先に着いたら押せる" : "　🐧 3つ終えると行き先が分かる")
              : (m.cleared ? "　✅クリア！" : "　" + m.checkedCount + "/" + m.memberCount + "人がチェック"))
           + '</span></span>';
 
         // 「パーティの名前を決めよう」には名前の入力欄、「スタート宣言」には文例を添える
-        if (m.kind === "partyName" && !m.cleared && !notStarted && !notJoined) row.appendChild(buildPartyNameEditor(q));
+        if (m.kind === "partyName" && !m.cleared && !m.locked && !notStarted && !notJoined) row.appendChild(buildPartyNameEditor(q));
         if (m.kind === "declare" && !m.cleared) {
           const d = document.createElement("div");
           d.className = "m-declare"; d.textContent = (q.tutorial || {}).declare || "";
           row.appendChild(d);
         }
-        if (m.kind === "partyName" || m.kind === "declare") row.style.flexWrap = "wrap";
+        // 自己紹介にはプロフィールの話題をヒントに添える（着いてから）
+        if (m.kind === "intro" && !m.cleared && !m.locked && (q.tutorial || {}).introHint) {
+          const d = document.createElement("div");
+          d.className = "m-declare"; d.textContent = "💡 " + q.tutorial.introHint;
+          row.appendChild(d);
+        }
+        if (m.kind === "partyName" || m.kind === "declare" || m.kind === "intro") row.style.flexWrap = "wrap";
 
         // クリア済み・ロック中は押せない（取り消すとチカラが減り、救出済みの姫が戻ってしまうため）
         if (notStarted || notJoined) row.style.opacity = ".55";
@@ -2288,8 +2312,11 @@
       if (rowEl) rowEl.style.pointerEvents = "none";
       const r = await api("toggleQuestMission", {
         lineUserId: profile.userId, slotId: currentGroupSlotId, missionId: missionId, done: mine });
-      if (r.ok && r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
-      else if (rowEl) rowEl.style.pointerEvents = "";
+      if (r.ok && r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); return; }
+      if (rowEl) rowEl.style.pointerEvents = "";
+      // 断られた（スタート前・移動先に着く前など）→ 最新の状態に描き直して理由を見せる
+      if (r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
+      if (r.error) alert(r.error);
     }
 
     // ----- 姫の救出演出 -----
