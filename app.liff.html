@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="robots" content="noindex, nofollow">
   <title>100 Quest</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <!-- 手書きフォント（動物の鳴き声だけに使用。使う文字のみ配信される） -->
@@ -1505,6 +1506,20 @@
     function stopGroupPoll() {
       if (groupPollInterval) { clearInterval(groupPollInterval); groupPollInterval = null; }
     }
+    // 画面が裏に回ったら（画面オフ・トークや別のアプリへ切り替え）自動更新を止め、戻ったらすぐ1回更新して再開する。
+    // しまっている間の読み取りを減らすため（遊び心地は変わらない）
+    let groupPollPaused = false;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (groupPollInterval) { stopGroupPoll(); groupPollPaused = true; }
+      } else if (groupPollPaused) {
+        groupPollPaused = false;
+        if (!$("screen-group").classList.contains("hidden") && !$("groupDetail").classList.contains("hidden")) {
+          refreshGroupQuiet();
+          startGroupPoll();
+        }
+      }
+    });
     async function refreshGroupQuiet() {
       // 画面を離れた・不成立・終了済みなら止める
       if ($("screen-group").classList.contains("hidden") || $("groupDetail").classList.contains("hidden")) { stopGroupPoll(); return; }
@@ -2608,6 +2623,8 @@
     let slotDay = null;        // 選んでいる日付
     const todayJst = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
     const startHM = (time) => { const m = String(time || "").match(/(\d{1,2}):(\d{2})/); return m ? m[1].padStart(2, "0") + ":" + m[2] : ""; };
+    // いま予約できる残り（前日までは、当日来場の方のための席を除いた数）
+    const bookableLeft = (s) => (typeof s.bookableRemaining === "number" ? s.bookableRemaining : s.remaining);
     // 枠の状態：○空きあり／△残りわずか／×予約できない（理由つき）
     function slotState(s) {
       const minorMode = $("minorBorrowed").checked;
@@ -2615,10 +2632,11 @@
       if (myResvList.some((r) => r.slotId === s.slotId)) reason = "予約済みです";
       else if (s.closed) reason = "予約の締切を過ぎています";
       else if (s.isFull) reason = "満席です";
+      else if (s.advanceFull) reason = "前日までの受付はいっぱいです（当日来場の方のために " + s.heldForDay + "席を残しています。枠の当日になると予約できます）";
       else if (conflictsWithMine(s)) reason = "予約済みの時間と重なる（または続いている）ため選べません";
       else if (minorMode && s.adultsOnly) reason = "お子さまは参加できない枠です";
       if (reason) return { cls: "ng", mark: "×", reason };
-      return s.remaining <= FEW_SEATS ? { cls: "few", mark: "△" } : { cls: "ok", mark: "○" };
+      return bookableLeft(s) <= FEW_SEATS ? { cls: "few", mark: "△" } : { cls: "ok", mark: "○" };
     }
     // 最初に開く日：フェス当日ならその日、フェス前なら初日（過ぎた日しか無ければ最後の日）
     function defaultSlotDay(dates) {
@@ -2730,7 +2748,8 @@
         if (paymentsInfo.booth && price && price.indexOf("無料") !== 0) price += '<br><small>予約は無料。参加費はスタート前に当日ブースでお支払いください（クーポンもそのとき使えます）</small>';
       }
       sd.innerHTML = '<div class="slot-detail">' + when
-        + '<div class="sd-row">残り <b>' + s.remaining + '席</b>' + (st.cls === "few" ? "（残りわずか）" : "") + '</div>'
+        + '<div class="sd-row">残り <b>' + bookableLeft(s) + '席</b>' + (st.cls === "few" ? "（残りわずか）" : "")
+          + (s.heldForDay ? '<br><small>このほかに、当日来場の方のための席が ' + s.heldForDay + '席あります（枠の当日に予約できます）</small>' : "") + '</div>'
         + (price ? '<div class="sd-row">料金 <b>' + price + '</b></div>' : "")
         + kids
         + '<button type="button" class="sd-go">この時間で予約へ進む ↓</button></div>';

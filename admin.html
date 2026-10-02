@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow">
   <title>100 Quest 管理画面</title>
   <style>
     * { box-sizing:border-box; margin:0; padding:0; }
@@ -300,6 +301,20 @@
       <div class="status" id="bStatus"></div>
       <div class="hidden" id="bPreview" style="max-height:340px;overflow:auto;border:1px solid #ece8dc;border-radius:8px;margin-top:8px"></div>
       <button id="bCreateBtn" class="hidden">この内容で作成する</button>
+    </div>
+
+    <!-- 当日来場者のための席 -->
+    <div class="card">
+      <h2>🎫 当日来場者のための席</h2>
+      <div class="sub" style="margin-bottom:8px">出店要項「事前予約が満席で、当日の来場者が体験できない状況を避ける」への対応です。
+        各枠で、<b>前日までに予約できるのは定員のこの割合まで</b>。残りの席は<b>枠の当日になると</b>予約できます（前日までに埋まらなかった席もそのまま）。
+        テスト枠と、18歳未満の招待（保護者と同じパーティ）は対象外。変えると、そのあとの予約から効きます（入っている予約はそのまま）。</div>
+      <div class="row" style="align-items:flex-end">
+        <div><label>前日までに予約できる割合（%・50〜100）</label><input type="number" id="advPercent" min="50" max="100" step="5" /></div>
+        <div style="flex:0 0 auto;min-width:0"><button id="advSave" style="margin:0">保存する</button></div>
+      </div>
+      <div class="meta" id="advExample"></div>
+      <div class="status" id="advStatus"></div>
     </div>
 
     <!-- スロット一覧＋マッチング／通知 -->
@@ -654,6 +669,7 @@
       if (id === "tab-quest" && !questLoaded) loadQuestSettings();
       if (id === "tab-coupons") loadCodes();
       if (id === "tab-ops") { loadTiming(); loadStaffKey(); }
+      if (id === "tab-slots") loadBooking();
     }
     document.querySelectorAll(".atab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
@@ -900,6 +916,25 @@
       const r = await api("timingSettings", p);
       if (!r.ok) { set("timingStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
       set("timingStatus", "✅ 保存しました（受付は開始" + r.timing.normal.checkinOpenMin + "分前から・自動スタートは開始" + r.timing.normal.graceMin + "分後・途中合流はスタートから" + r.timing.normal.lateJoinMin + "分まで）", "ok");
+    });
+
+    // ----- 🎫 当日来場者のための席 -----
+    function advExample() {
+      const v = Number($("advPercent").value) || 0;
+      $("advExample").textContent = v ? "例：定員20 → 前日まで " + Math.floor(20 * v / 100) + "人・当日に " + (20 - Math.floor(20 * v / 100)) + "席／定員16 → 前日まで "
+        + Math.floor(16 * v / 100) + "人・当日に " + (16 - Math.floor(16 * v / 100)) + "席" : "";
+    }
+    $("advPercent").addEventListener("input", advExample);
+    async function loadBooking() {
+      const r = await api("bookingSettings", {});
+      if (!r.ok) { set("advStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      $("advPercent").value = r.booking.advancePercent; advExample();
+    }
+    $("advSave").addEventListener("click", async () => {
+      const r = await api("bookingSettings", { save: "1", advancePercent: String($("advPercent").value) });
+      if (!r.ok) { set("advStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      $("advPercent").value = r.booking.advancePercent; advExample();
+      set("advStatus", "✅ 保存しました（前日までに予約できるのは定員の" + r.booking.advancePercent + "%まで）", "ok");
     });
 
     // ----- ①+ 予約枠をまとめて作成 -----
