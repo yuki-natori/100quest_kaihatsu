@@ -176,6 +176,20 @@
     .action-banner .ab-pay.done { background:#f3faf5; border-color:var(--green); color:var(--green); }
     .action-banner .ab-mark { width:100%; margin-top:8px; padding:9px; font-size:13px; font-weight:800; color:var(--green);
       background:#fff; border:1.5px solid var(--green); border-radius:10px; cursor:pointer; font-family:inherit; }
+    /* 最初の行き先を選ぶ（スタート前・ブースで） */
+    .dest-pick { margin-top:12px; padding-top:12px; border-top:1px dashed rgba(59,109,79,.35); }
+    .dest-pick .dp-title { font-size:15px; font-weight:900; color:var(--ink); }
+    .dest-pick .dp-sub { font-size:12px; color:#6b6b6b; margin:4px 0 8px; line-height:1.5; }
+    .dest-pick .dp-opt { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; margin-top:8px; padding:10px 12px;
+      text-align:left; background:#fff; border:1.5px solid #d9d4c7; border-radius:12px; cursor:pointer; font-family:inherit; color:var(--ink); }
+    .dest-pick .dp-opt.on { border-color:var(--green); background:#f3faf5; box-shadow:0 0 0 2px rgba(59,109,79,.15); }
+    .dest-pick .dp-opt:disabled { opacity:.6; }
+    .dest-pick .dp-name { font-size:15px; font-weight:800; }
+    .dest-pick .dp-reco { display:inline-block; margin-left:6px; padding:1px 8px; font-size:11px; font-weight:800; color:#fff;
+      background:var(--accent); border-radius:99px; vertical-align:2px; }
+    .dest-pick .dp-note { font-size:12px; color:#555; line-height:1.45; }
+    .dest-pick .dp-fans { font-size:11.5px; font-weight:700; color:var(--green); }
+    .dest-pick .dp-help { font-size:11.5px; color:#6b6b6b; margin-top:8px; }
     .group-box .gmark { display:inline-block; margin-top:6px; padding:3px 12px; border-radius:99px; font-size:13px; font-weight:800;
       background:rgba(255,255,255,.92); color:var(--ink); cursor:pointer; border:none; font-family:inherit; }
     .gmember .gm-badge { font-size:11px; font-weight:700; margin-left:6px; color:var(--green); }
@@ -1365,7 +1379,8 @@
             + '<div class="ab-sub">' + ((g.arrived || 0) < need ? need + '人以上そろうと押せます。'
               : unpaidHere.length ? 'まだお支払いが済んでいない人：' + esc(unpaidHere.join("・")) + '。' : '')
             + (bth.autoStartAt ? '押さなくても ' + fmtHM(Date.parse(bth.autoStartAt)) + ' に' + need + '人以上いれば自動でスタートします' : '') + '</div>'
-            + markButtonHtml(g);
+            + markButtonHtml(g)
+            + destinationPickerHtml(g);
         }
       } else if (g.status === "started" && bth.lateJoin) {
         // スタート後にまだ合流していない人
@@ -1399,7 +1414,8 @@
               + '<div class="ab-sub">全員でクリアすると、' + esc(firstPrincessName(questData)) + 'を救い出せるよ</div>'
             : '<div class="ab-label">まずは移動</div>'
               + '<div class="ab-title">🚶 ' + esc(t.destination || "移動先") + ' へ全員で移動しよう</div>'
-              + '<div class="ab-sub">' + (t.walkHint ? esc(t.walkHint) + "。" : "") + '着いたら「移動」を全員でチェックしてね</div>';
+              + '<div class="ab-sub">' + (t.walkHint ? esc(t.walkHint) + "。" : "") + '着いたら「移動」を全員でチェックしてね</div>'
+              + '<div class="ab-sub">迷ったら、ブースに戻ってきてOK</div>';
         } else if (questData && questData.phase === "tutorial") {
           // チュートリアル中（作り替え前にマッチングしたパーティ）→ 目の前の4つ
           const t = questData.tutorial || {};
@@ -1430,6 +1446,49 @@
       const sb = $("abShareBtn"); if (sb) sb.onclick = openShareCard;
       const st = $("abStartBtn"); if (st) st.onclick = doStartParty;
       box.querySelectorAll(".ab-mark").forEach((b) => { b.onclick = () => showMark(currentGroup); });
+      box.querySelectorAll(".dp-opt").forEach((b) => { b.onclick = () => doChooseDestination(b.dataset.spot); });
+    }
+
+    // ----- 最初の行き先：ブースでスタッフが候補を紹介し、パーティで選ぶ（だれが選んでもOK・出発までは変えられる） -----
+    function destinationPickerHtml(g) {
+      if (!g || !g.canChooseDestination) return "";
+      const cur = g.destination ? g.destination.spotId : null;
+      return '<div class="dest-pick">'
+        + '<div class="dp-title">🧭 最初の行き先をパーティで選ぼう</div>'
+        + '<div class="dp-sub">スタッフが候補を紹介します。だれが選んでもOK・出発までは変えられます'
+        + (g.destinationChosen ? '' : '（選ばなければ「おすすめ」で出発します）') + '</div>'
+        + (g.destinationChoices || []).map((c) => {
+          const on = c.spotId === cur;
+          return '<button class="dp-opt' + (on ? ' on' : '') + '" type="button" data-spot="' + esc(c.spotId) + '">'
+            + '<span class="dp-name">' + (on ? '✅ ' : '') + esc(c.label) + (c.recommended ? '<span class="dp-reco">おすすめ</span>' : '') + '</span>'
+            + (c.note ? '<span class="dp-note">' + esc(c.note) + '</span>' : '')
+            + (c.fans && c.fans.length ? '<span class="dp-fans">' + esc(c.funLabel) + 'が楽しみ：' + esc(c.fans.map((n) => n + 'さん').join('・')) + '</span>' : '')
+            + '</button>';
+        }).join('')
+        + '<div class="dp-help">着いた場所で、まずは全員で自己紹介。迷ったらブースに戻ってきてOK</div>'
+        + '</div>';
+    }
+    let destBusy = false;
+    async function doChooseDestination(spotId) {
+      const g = currentGroup;
+      if (!g || destBusy || (g.destination && g.destination.spotId === spotId && g.destinationChosen)) return;
+      destBusy = true;
+      $("actionBanner").querySelectorAll(".dp-opt").forEach((b) => { b.disabled = true; });
+      try {
+        const r = await api("chooseDestination", { lineUserId: profile.userId, slotId: currentGroupSlotId, spotId: spotId });
+        if (r.ok) {
+          // すぐ画面に反映し、ほかのメンバーの画面は自動更新（10秒ごと）で追いつく
+          g.destination = r.destination; g.destinationChosen = true;
+          renderActionBanner();
+          await loadQuest(currentGroupSlotId);   // チュートリアルの「移動」の行き先も差し替わる
+        } else {
+          setStatus("groupStatus", "⚠️ " + (r.error || "行き先を選べませんでした"), "ng");
+          await refreshGroupQuiet();
+        }
+      } finally {
+        destBusy = false;
+        $("actionBanner").querySelectorAll(".dp-opt").forEach((b) => { b.disabled = false; });
+      }
     }
 
     // ----- 目印（🐰 うさぎ組）：画面いっぱいに出して、ブースで掲げて集まる -----
@@ -1458,8 +1517,8 @@
       const ok = await dangerConfirm({
         title: "🚩 パーティが集まった",
         body: absent.length
-          ? "まだ来ていない人がいます。スタートすると100分のクエストが始まります。来ていない人は、あとから途中で合流できます。"
-          : "全員そろいました。スタートすると100分のクエストが始まります。",
+          ? "まだ来ていない人がいます。スタートすると、最大100分のクエストが始まります。来ていない人は、あとから途中で合流できます。"
+          : "全員そろいました。スタートすると、最大100分のクエストが始まります。",
         target: absent.length ? "まだ来ていない人：" + absent.join("・") : "",
         confirmText: "スタートする", single: true, safe: true
       });

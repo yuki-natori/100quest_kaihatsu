@@ -229,7 +229,9 @@
                  : unpaid ? "💴 未払い " + g.unpaidHere + "人（受け取ってからスタート）" : "🚩 パーティが集まった（代わりに押す）") + '</button>' : "";
           return '<div class="grp" style="border-top:8px solid ' + esc(color) + '"><div class="grp-head"><span class="emo">' + esc(g.mark ? g.mark.emoji : "🎲") + '</span>'
             + '<div><div class="nm">' + esc(g.name) + '</div>' + (g.partyName ? '<div class="pn">' + esc(g.partyName) + '</div>' : "") + '</div>' + st + '</div>'
-            + '<div class="arr">到着 ' + g.arrived + ' / ' + g.total + '人</div>' + mem + startBtn + '</div>';
+            + '<div class="arr">到着 ' + g.arrived + ' / ' + g.total + '人'
+            + (g.destination ? '　🧭 ' + esc(g.destination) + (g.destinationChosen ? '（選択済み）' : g.status === "waiting" ? '（おすすめのまま）' : '') : '') + '</div>'
+            + mem + startBtn + '</div>';
         }).join("") + '</div></div>';
       }).join("");
     }

@@ -151,7 +151,7 @@
       <button class="atab active" data-tab="tab-slots">📅 予約枠</button>
       <button class="atab" data-tab="tab-ops">🎪 当日運用</button>
       <button class="atab" data-tab="tab-coupons">🎟 クーポン</button>
-      <button class="atab" data-tab="tab-spots">📍 集合場所</button>
+      <button class="atab" data-tab="tab-spots">📍 行き先</button>
       <button class="atab" data-tab="tab-users">👤 ユーザー</button>
       <button class="atab" data-tab="tab-quest">🏰 クエスト</button>
     </div>
@@ -179,7 +179,7 @@
           <div class="sub" style="font-size:12px; margin:-4px 0 10px">
             行の追加・削除・並べ替えはできません（名前の入力欄や目的地の仕掛けが各行に紐づいているため）。
             スタートした時点で移動先を出し、<b>移動を全員でチェックするまで残りの3つは押せません</b>（ブースではチュートリアルをしない）。
-            移動の行には <b>{destination}</b> を必ず残してください（📍集合場所タブの地点名が入ります）。
+            移動の行には <b>{destination}</b> を必ず残してください（パーティが選んだ行き先＝📍行き先タブの候補が入ります）。
           </div>
           <div id="questTutorialList"></div>
           <button class="sub-btn danger" id="resetTutorialBtn">チュートリアルを既定に戻す</button>
@@ -339,22 +339,26 @@
 
     <!-- 集合場所 -->
     <div class="card">
-      <h2 id="spotFormTitle">③ 地点を登録</h2>
+      <h2 id="spotFormTitle">③ 行き先の候補を登録</h2>
       <div class="sub" style="margin-bottom:10px">
-        ここに登録した地点が<b>チュートリアルの移動先</b>になります。マッチング時に登録順で
-        パーティへ順繰りに割り当て（<b>専有ではないので重複しても大丈夫</b>）、
-        スタートした時点でアプリに表示され、着いたらアイスブレイクのミッション（自己紹介など）をそこで行います。<br>
-        目安は<b>8〜12地点</b>（同時スタートが4〜8組のため）。条件はブースから徒歩3〜5分・目印になり迷わない・
-        動線を塞がない・人が滞留しても平気な広さ。<b>0件のときは全パーティ「スタート地点」と表示</b>されます。
+        ここに登録したエリアが<b>最初の行き先の候補</b>になります。マッチング時に、パーティごとに<b>候補3つ</b>（先頭が「おすすめ」）を
+        登録順からずらして割り当てます（同じ枠・隣の枠でおすすめが重ならないように）。
+        ブースでスタッフが候補を紹介し、パーティがアプリで1つ選びます（だれが選んでもOK・出発までは変更可。選ばなければおすすめ）。<br>
+        候補は<b>フェスの見どころのエリア</b>にします（例：フードエリア、ブースが並ぶ通り）。
+        <b>つながるエリア・公式ブースエリア・ステージの前と客席・フォトスポット・こどもエリアは候補にしない</b>（企画書の約束）。
+        目安は<b>5〜8件</b>。<b>0件のときは全パーティ「スタート地点」と表示</b>されます。
       </div>
       <div class="row">
-        <div><label>種類</label>
-          <select id="spotType">
-            <option>長テーブル</option><option>丸テーブル</option><option>ソファー</option>
+        <div><label>エリアの名前（20文字まで）</label><input id="spotLabel" maxlength="20" placeholder="例：フードエリア" /></div>
+        <div><label>楽しみと結びつける（任意）</label>
+          <select id="spotFun">
+            <option value="">なし</option><option value="stage">🎤 ステージ</option><option value="booth">🎪 ブース巡り</option>
+            <option value="food">🍽 グルメ</option><option value="meet">🤝 仲間との交流</option><option value="learn">📚 学び</option>
           </select>
         </div>
-        <div><label>番号</label><input type="number" id="spotNumber" value="1" /></div>
       </div>
+      <div><label>ひとこと説明（40文字まで・任意）</label><input id="spotNote" maxlength="40" placeholder="例：キッチンカーや屋台が並ぶエリア" /></div>
+      <div class="sub" style="margin:6px 0 10px">「楽しみ」を選んでおくと、その楽しみを選んだメンバーの名前が候補に添えられます（選ぶきっかけ）。</div>
       <button id="createSpotBtn">登録する</button>
       <button id="cancelSpotEditBtn" class="sub-btn hidden">編集をやめる</button>
       <button class="sub-btn" id="reloadSpots">一覧を更新</button>
@@ -1233,7 +1237,7 @@
             "　／　🧭 チュートリアル " + (r.tutorialCount || 0) + "件<br>" +
             (r.destinationCount
               ? "🚶 移動先 " + r.destinationCount + "地点を順繰りに割り当て<br>"
-              : '<span class="ng">⚠️ 📍集合場所が0件です。全パーティが「スタート地点」と表示され、混雑します</span><br>') +
+              : '<span class="ng">⚠️ 📍行き先の候補が0件です。全パーティが「スタート地点」と表示され、混雑します</span><br>') +
             '<div class="meta" style="font-size:12px;margin:2px 0 8px">' +
             esc((r.missionNames || []).join(" / ")) + "</div>";
         }
@@ -1316,31 +1320,34 @@
     let editingSpotId = null;
 
     $("createSpotBtn").addEventListener("click", async () => {
-      const type = $("spotType").value, number = $("spotNumber").value;
+      const label = $("spotLabel").value.trim(), note = $("spotNote").value.trim(), fun = $("spotFun").value;
+      if (!label) { set("spotStatus", "エリアの名前を入れてください", "ng"); return; }
       if (editingSpotId) {
         set("spotStatus", "更新中…", "");
-        const r = await api("updateMeetingSpot", { spotId: editingSpotId, type, number });
+        const r = await api("updateMeetingSpot", { spotId: editingSpotId, label, note, fun });
         if (r.ok) { set("spotStatus", "✅ 更新：" + r.label, "ok"); endSpotEdit(); loadSpots(); }
         else set("spotStatus", "⚠️ " + (r.error || "失敗"), "ng");
       } else {
         set("spotStatus", "登録中…", "");
-        const r = await api("createMeetingSpot", { type, number });
-        if (r.ok) { set("spotStatus", "✅ 登録：" + r.label, "ok"); loadSpots(); }
+        const r = await api("createMeetingSpot", { label, note, fun });
+        if (r.ok) { set("spotStatus", "✅ 登録：" + r.label, "ok"); $("spotLabel").value = ""; $("spotNote").value = ""; $("spotFun").value = ""; loadSpots(); }
         else set("spotStatus", "⚠️ " + (r.error || "失敗"), "ng");
       }
     });
     function editSpot(s) {
       editingSpotId = s.spotId;
-      $("spotType").value = s.type;
-      $("spotNumber").value = s.number;
-      $("spotFormTitle").textContent = "③ 集合場所を編集中";
+      $("spotLabel").value = s.label || "";
+      $("spotNote").value = s.note || "";
+      $("spotFun").value = s.fun || "";
+      $("spotFormTitle").textContent = "③ 行き先の候補を編集中";
       $("createSpotBtn").textContent = "この内容で更新する";
       $("cancelSpotEditBtn").classList.remove("hidden");
       set("spotStatus", "編集中：" + s.label, "");
     }
     function endSpotEdit() {
       editingSpotId = null;
-      $("spotFormTitle").textContent = "③ 集合場所を登録";
+      $("spotFormTitle").textContent = "③ 行き先の候補を登録";
+      $("spotLabel").value = ""; $("spotNote").value = ""; $("spotFun").value = "";
       $("createSpotBtn").textContent = "登録する";
       $("cancelSpotEditBtn").classList.add("hidden");
       set("spotStatus", "", "");
@@ -1348,8 +1355,8 @@
     $("cancelSpotEditBtn").addEventListener("click", endSpotEdit);
     async function deleteSpot(s) {
       const ok = await dangerConfirm({
-        title: "集合場所を削除",
-        body: "この集合場所を削除します。よろしいですか？",
+        title: "行き先の候補を削除",
+        body: "この行き先の候補を削除します（マッチング済みのパーティには残ります）。よろしいですか？",
         target: s.label,
         confirmText: "削除する"
       });
@@ -1363,11 +1370,13 @@
       const r = await api("getMeetingSpots", {}, false);
       const list = $("spotList"); list.innerHTML = "";
       const spots = r.spots || [];
-      if (!spots.length) { list.innerHTML = '<div class="meta">登録済みの集合場所はありません</div>'; return; }
+      if (!spots.length) { list.innerHTML = '<div class="meta">登録済みの行き先の候補はありません</div>'; return; }
+      const FUN_NAME = { stage: "🎤ステージ", booth: "🎪ブース巡り", food: "🍽グルメ", meet: "🤝仲間との交流", learn: "📚学び" };
       spots.forEach((s) => {
         const div = document.createElement("div");
         div.className = "slot-row";
-        div.innerHTML = '<span class="title">' + esc(s.label) + '</span>';
+        div.innerHTML = '<span class="title">' + esc(s.label) + '</span>'
+          + (s.note || s.fun ? '<span class="meta">' + esc(s.note || "") + (s.fun ? '（' + esc(FUN_NAME[s.fun] || "") + '）' : '') + '</span>' : '');
         const e = document.createElement("button"); e.className = "sub-btn"; e.textContent = "編集"; e.onclick = () => editSpot(s);
         const d = document.createElement("button"); d.className = "sub-btn danger"; d.textContent = "削除"; d.onclick = () => deleteSpot(s);
         div.appendChild(e); div.appendChild(d);
