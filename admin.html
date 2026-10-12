@@ -228,7 +228,7 @@
       <div class="row">
         <div><label>料金</label>
           <select id="slotPrice">
-            <option value="standard">通常料金（事前1,500円／当日2,000円）</option>
+            <option value="standard">有料（早割1,500円／通常2,000円）</option>
             <option value="free">無料（テストプレイ・招待）</option>
           </select>
           <div class="meta" id="priceHint" style="margin-top:4px"></div></div>
@@ -278,7 +278,7 @@
         <div><label>定員</label><input type="number" id="bCap" value="20" /></div>
         <div><label>料金</label>
           <select id="bPrice">
-            <option value="standard">通常料金（事前1,500円／当日2,000円）</option>
+            <option value="standard">有料（早割1,500円／通常2,000円）</option>
             <option value="free">無料（テストプレイ・招待）</option>
           </select></div>
         <div><label>予約締切の決め方</label>
@@ -315,6 +315,18 @@
       </div>
       <div class="meta" id="advExample"></div>
       <div class="status" id="advStatus"></div>
+    </div>
+
+    <!-- 早割の状況 -->
+    <div class="card">
+      <h2>🏷 早割</h2>
+      <div class="sub" style="margin-bottom:8px">早割は<b>期限までの予約・先着の人数まで・1人1回</b>。早割の予約がキャンセルされると、その分は次の人が早割で予約できます。
+        ただし、<b>一度上限の人数に達したら終了</b>し、そのあとキャンセルが出ても再開しません。無料の枠と18歳未満は数えません。
+        金額・人数・期限は、特定商取引法のページと同じ内容をコードで決めています（変えるときはClaudeに依頼）。</div>
+      <div id="earlyInfo" class="meta">読み込み中…</div>
+      <button type="button" class="sub-btn" id="earlyRecount" style="margin-top:8px">人数を数え直す</button>
+      <div class="meta">テストの予約を消したあとなど、記録の人数が実際とずれたときに使います。</div>
+      <div class="status" id="earlyStatus"></div>
     </div>
 
     <!-- スロット一覧＋マッチング／通知 -->
@@ -673,7 +685,7 @@
       if (id === "tab-quest" && !questLoaded) loadQuestSettings();
       if (id === "tab-coupons") loadCodes();
       if (id === "tab-ops") { loadTiming(); loadStaffKey(); }
-      if (id === "tab-slots") loadBooking();
+      if (id === "tab-slots") { loadBooking(); loadEarly(); }
     }
     document.querySelectorAll(".atab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
@@ -762,10 +774,11 @@
       const p = paymentsInfo;
       if (!p) return;
       const yen = (n) => Number(n).toLocaleString("ja-JP") + "円";
-      $("slotPrice").options[0].textContent = "通常料金（事前" + yen(p.advance) + "／当日" + yen(p.sameDay) + "）";
-      $("priceHint").textContent = p.enabled
-        ? "事前／当日は予約した日で決まります（枠の当日に予約すると当日料金）"
-        : "決済の導入前なので、今はどちらを選んでも料金はかかりません";
+      const label = "有料（早割" + yen(p.early) + "／通常" + yen(p.regular) + "）";
+      $("slotPrice").options[0].textContent = label;
+      if ($("bPrice")) $("bPrice").options[0].textContent = label;
+      $("priceHint").textContent = "早割か通常かは、予約した時点で決まります（早割の状況は下の「🏷 早割」）。"
+        + (p.booth ? "参加費は当日ブースで受け取ります" : "");
     }
 
     // ----- 締切のプリセット・定員の目安 -----
@@ -779,14 +792,12 @@
         const k = Math.floor(n / 3), r = n % 3;
         return r === 0 ? k : (r === 1 ? k : k - 1);
       }
-      if (n <= 6) return 1;
-      let k = Math.floor(n / 5);
-      return (n - 5 * k <= k) ? k : k + 1;
+      return Math.ceil(n / 5);  // 本番枠：1組は最大5人・均等割り（12人→4人×3組）
     }
     function updateCapHint() {
       const n = $("slotCap").value, t = $("slotTest").checked;
       const p = estParties(n, t);
-      $("capHint").textContent = p ? "満席なら 最大" + p + "組（" + (t ? "3人基本" : "5人基本") + "）" : "";
+      $("capHint").textContent = p ? "満席なら 最大" + p + "組（" + (t ? "3人基本" : "1組は最大5人") + "）" : "";
     }
     $("slotCap").addEventListener("input", updateCapHint);
     $("slotTest").addEventListener("change", updateCapHint);
@@ -939,6 +950,29 @@
       if (!r.ok) { set("advStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
       $("advPercent").value = r.booking.advancePercent; advExample();
       set("advStatus", "✅ 保存しました（前日までに予約できるのは定員の" + r.booking.advancePercent + "%まで）", "ok");
+    });
+
+    // ----- 🏷 早割の状況 -----
+    function renderEarly(r) {
+      const yen = (n) => Number(n).toLocaleString("ja-JP") + "円";
+      const m = String(r.until || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const until = m ? m[1] + "年" + Number(m[2]) + "月" + Number(m[3]) + "日" : r.until;
+      const state = r.open ? "✅ 受付中（残り " + r.remaining + "名）"
+        : (r.ended === "full" ? "⛔ 終了（上限の" + r.limit + "名に達しました）" : "⛔ 終了（期限の" + until + "を過ぎました）");
+      $("earlyInfo").innerHTML = "<b>" + esc(state) + "</b><br>"
+        + "早割で予約中：<b>" + esc(r.count) + "名</b>／" + esc(r.limit) + "名　・　期限：" + esc(until) + "まで　・　早割 " + yen(r.price) + "／通常 " + yen(r.regularPrice)
+        + (r.count !== r.actual ? '<br><span style="color:#c0392b">⚠️ 記録は' + esc(r.count) + "名ですが、予約を数えると" + esc(r.actual) + "名です。「人数を数え直す」で合わせられます</span>" : "");
+    }
+    async function loadEarly() {
+      const r = await api("earlyBirdStatus", {});
+      if (!r.ok) { $("earlyInfo").textContent = ""; set("earlyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      renderEarly(r);
+    }
+    $("earlyRecount").addEventListener("click", async () => {
+      const r = await api("earlyBirdStatus", { recount: "1" });
+      if (!r.ok) { set("earlyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      renderEarly(r);
+      set("earlyStatus", "✅ 数え直しました（早割で予約中：" + r.count + "名）", "ok");
     });
 
     // ----- ①+ 予約枠をまとめて作成 -----

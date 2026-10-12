@@ -1636,6 +1636,10 @@
     let myResvList = []; // 自分の予約（新規予約時の時間重複チェックに使う）
     let slotsCache = []; // 枠の一覧（締切を過ぎたか＝キャンセル可否の判定に使う）
     let paymentsInfo = null; // 料金の案内（サーバーが決めた金額。enabled が false の間は金額を出さない）
+    let earlyInfo = null;    // 早割の状況（受付中か・残り何名か・いつまでか）
+    // 早割の予約をすでに持っているか（早割は1人1回まで。不成立になった予約は数えない）
+    const holdsEarly = () => (myResvList || []).some((r) => r.priceKind === "early" && !r.unmatched);
+    const jpDate = (d) => { const m = String(d || "").match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[1] + "年" + Number(m[2]) + "月" + Number(m[3]) + "日" : ""; };
     const yen = (n) => Number(n || 0).toLocaleString("ja-JP") + "円";
 
     // ===== ⑭ 18歳未満：お子さまを招待（保護者）=====
@@ -1913,6 +1917,7 @@
       ]);
       slotsCache = slotsRes.slots || [];  // 締切を過ぎたかの判定に使う
       paymentsInfo = slotsRes.payments || paymentsInfo;
+      earlyInfo = slotsRes.earlyBird || earlyInfo;
       const resvs = mine.reservations || [];
       myResvList = resvs;
       const list = $("reserveList");
@@ -2078,6 +2083,7 @@
       setStatus("homeStatus", "", "");
       const slotsRes = await api("getSlots");
       paymentsInfo = slotsRes.payments || paymentsInfo;
+      earlyInfo = slotsRes.earlyBird || earlyInfo;
       renderSlots(slotsRes.slots || []);
     });
     $("chooseBackBtn").addEventListener("click", renderReserve);
@@ -2800,9 +2806,14 @@
       if (paymentsInfo && (paymentsInfo.enabled || paymentsInfo.booth)) {
         if ($("minorBorrowed").checked) price = "無料（18歳未満）";
         else if (!s.priceNow) price = "無料";
-        else if (s.priceNow === paymentsInfo.sameDay) price = yen(s.priceNow) + "（当日予約）";
-        else price = yen(s.priceNow) + "（事前予約）"
-          + (paymentsInfo.sameDay ? '<br><small>枠の当日に予約すると ' + yen(paymentsInfo.sameDay) + '</small>' : "");
+        else if (earlyInfo && earlyInfo.open && s.priceNow === paymentsInfo.early && !holdsEarly()) {
+          // 早割を使える：金額・残りの人数・期限・終了後の金額を出す
+          price = yen(paymentsInfo.early) + "（早割・残り" + earlyInfo.remaining + "名）"
+            + '<br><small>早割は' + jpDate(earlyInfo.until) + 'までのご予約・先着' + earlyInfo.limit + '名・お一人1回まで。終了後は ' + yen(paymentsInfo.regular) + '</small>';
+        } else {
+          price = yen(paymentsInfo.regular || s.priceNow) + "（通常）"
+            + (earlyInfo && earlyInfo.open && holdsEarly() ? '<br><small>早割はお一人1回までです（早割のご予約をお持ちのため、通常料金になります）</small>' : "");
+        }
         // 予約は無料。参加費は当日ブースで、スタートの前にお支払い（クーポンもそのとき使う）
         if (paymentsInfo.booth && price && price.indexOf("無料") !== 0) price += '<br><small>予約は無料。参加費はスタート前に当日ブースでお支払いください（クーポンもそのとき使えます）</small>';
       }
