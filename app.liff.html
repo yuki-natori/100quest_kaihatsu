@@ -2688,8 +2688,15 @@
     let slotDay = null;        // 選んでいる日付
     const todayJst = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
     const startHM = (time) => { const m = String(time || "").match(/(\d{1,2}):(\d{2})/); return m ? m[1].padStart(2, "0") + ":" + m[2] : ""; };
-    // いま予約できる残り（前日までは、当日来場の方のための席を除いた数）
+    // いま予約できる残り（当日来場の方のための席が開くまでは、その席を除いた数）
     const bookableLeft = (s) => (typeof s.bookableRemaining === "number" ? s.bookableRemaining : s.remaining);
+    // 当日来場の方のための席が開く時刻（開始の◯分前）。今日なら「13:20」、別の日なら「7/2 13:20」
+    const dayOpenLabel = (s) => {
+      if (!s.dayOpenAt) return "";
+      const d = new Date(s.dayOpenAt), n = new Date();
+      const hm = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+      return d.toDateString() === n.toDateString() ? hm : (d.getMonth() + 1) + "/" + d.getDate() + " " + hm;
+    };
     // 枠の状態：○空きあり／△残りわずか／×予約できない（理由つき）
     function slotState(s) {
       const minorMode = $("minorBorrowed").checked;
@@ -2697,7 +2704,7 @@
       if (myResvList.some((r) => r.slotId === s.slotId)) reason = "予約済みです";
       else if (s.closed) reason = "予約の締切を過ぎています";
       else if (s.isFull) reason = "満席です";
-      else if (s.advanceFull) reason = "前日までの受付はいっぱいです（当日来場の方のために " + s.heldForDay + "席を残しています。枠の当日になると予約できます）";
+      else if (s.advanceFull) reason = "先に予約できる分はいっぱいです（当日来場の方のために " + s.heldForDay + "席を残しています。" + (dayOpenLabel(s) ? dayOpenLabel(s) + " から予約できます" : "開始が近づくと予約できます") + "）";
       else if (conflictsWithMine(s)) reason = "予約済みの時間と重なる（または続いている）ため選べません";
       else if (minorMode && s.adultsOnly) reason = "お子さまは参加できない枠です";
       if (reason) return { cls: "ng", mark: "×", reason };
@@ -2819,7 +2826,7 @@
       }
       sd.innerHTML = '<div class="slot-detail">' + when
         + '<div class="sd-row">残り <b>' + bookableLeft(s) + '席</b>' + (st.cls === "few" ? "（残りわずか）" : "")
-          + (s.heldForDay ? '<br><small>このほかに、当日来場の方のための席が ' + s.heldForDay + '席あります（枠の当日に予約できます）</small>' : "") + '</div>'
+          + (s.heldForDay ? '<br><small>このほかに、当日来場の方のための席が ' + s.heldForDay + '席あります（' + (dayOpenLabel(s) ? dayOpenLabel(s) + ' から予約できます' : '開始が近づくと予約できます') + '）</small>' : "") + '</div>'
         + (price ? '<div class="sd-row">料金 <b>' + price + '</b></div>' : "")
         + kids
         + '<button type="button" class="sd-go">この時間で予約へ進む ↓</button></div>';

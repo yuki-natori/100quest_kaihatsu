@@ -219,9 +219,10 @@
           <div class="meta" id="capHint" style="margin-top:4px"></div></div>
         <div><label>予約締切（必須）</label><input type="datetime-local" id="slotDeadline" />
           <div class="dl-presets" id="dlPresets">
-            <button type="button" class="sub-btn" data-dl="prev20">前日20:00</button>
+            <button type="button" class="sub-btn" data-dl="45">開始45分前（基本）</button>
             <button type="button" class="sub-btn" data-dl="60">開始60分前</button>
             <button type="button" class="sub-btn" data-dl="10">開始10分前</button>
+            <button type="button" class="sub-btn" data-dl="prev20">前日20:00</button>
           </div>
         </div>
       </div>
@@ -244,7 +245,8 @@
       <div class="sub" style="margin-top:6px">
         <b>締切時刻に自動でマッチングされます</b>（LINE通知は送られません。内容を確認してから
         「結果を一斉通知」を押してください）。締切後は参加者がキャンセルできなくなります。<br>
-        当日の飛び込み参加を受けたい枠は「開始10分前」にしてください（チェックインの受付開始は🎪当日運用の「ブースの流れの設定」で決めます）。
+締切の基本は<b>開始45分前</b>です（会場内の移動時間を見て、30〜45分で調整）。チェックインの受付開始は🎪当日運用の「ブースの流れの設定」で決めます。<br>
+        締切を<b>当日用の席が開く時刻（下の🎫）より前</b>にすると、その枠は当日用の席を残しません（残しても、開く前に締め切られて誰も予約できないため）。
       </div>
       <label style="margin-top:10px; font-weight:400; cursor:pointer;">
         <input type="checkbox" id="slotTest" style="width:auto; margin-right:6px; vertical-align:middle;" />
@@ -283,9 +285,10 @@
           </select></div>
         <div><label>予約締切の決め方</label>
           <select id="bDl">
-            <option value="prev20">前日20:00</option>
-            <option value="60" selected>開始60分前</option>
+            <option value="45" selected>開始45分前（基本）</option>
+            <option value="60">開始60分前</option>
             <option value="10">開始10分前</option>
+            <option value="prev20">前日20:00（当日用の席は残りません）</option>
             <option value="custom">開始の◯分前（下で指定）</option>
           </select>
           <input type="number" id="bDlMin" value="30" min="0" step="5" class="hidden" style="margin-top:6px" placeholder="分" /></div>
@@ -307,10 +310,12 @@
     <div class="card">
       <h2>🎫 当日来場者のための席</h2>
       <div class="sub" style="margin-bottom:8px">出店要項「事前予約が満席で、当日の来場者が体験できない状況を避ける」への対応です。
-        各枠で、<b>前日までに予約できるのは定員のこの割合まで</b>。残りの席は<b>枠の当日になると</b>予約できます（前日までに埋まらなかった席もそのまま）。
-        テスト枠と、18歳未満の招待（保護者と同じパーティ）は対象外。変えると、そのあとの予約から効きます（入っている予約はそのまま）。</div>
+        各枠で、<b>先に予約できるのは定員のこの割合まで</b>。残りの席は<b>開始の◯分前になると</b>開き、だれでも予約できます（会場に来ている人のための席）。
+        先に予約できる分の空きや、キャンセルで戻った席は、締切までいつでも予約できます。
+        テスト枠と、18歳未満の招待（保護者と同じパーティ）は対象外。<b>締切が「席の開く時刻」以前の枠</b>は、席を残しません。変えると、そのあとの予約から効きます（入っている予約はそのまま）。</div>
       <div class="row" style="align-items:flex-end">
-        <div><label>前日までに予約できる割合（%・50〜100）</label><input type="number" id="advPercent" min="50" max="100" step="5" /></div>
+        <div><label>先に予約できる割合（%・50〜100）</label><input type="number" id="advPercent" min="50" max="100" step="5" /></div>
+        <div><label>残りの席を開く時間（開始の何分前・15〜720）</label><input type="number" id="dayOpenMin" min="15" max="720" step="15" /></div>
         <div style="flex:0 0 auto;min-width:0"><button id="advSave" style="margin:0">保存する</button></div>
       </div>
       <div class="meta" id="advExample"></div>
@@ -337,8 +342,8 @@
       <!-- 締切必須化の移行用。締切が入っていない枠が残っていると自動マッチングが走らない -->
       <div class="hidden" id="noDeadlineBox" style="background:#fdf1f0;border:1px solid #f0c9c5;border-radius:8px;padding:11px 13px;margin-bottom:12px">
         <div style="font-weight:700;color:var(--err)" id="noDeadlineMsg"></div>
-        <div class="meta" style="margin-top:4px">締切が入っていない枠は<b>自動マッチングの対象になりません</b>。まとめて「開始60分前」を入れられます。</div>
-        <button class="sub-btn" id="fillDeadlineBtn">締切がない枠に「開始60分前」をまとめて設定</button>
+        <div class="meta" style="margin-top:4px">締切が入っていない枠は<b>自動マッチングの対象になりません</b>。まとめて「開始45分前」を入れられます。</div>
+        <button class="sub-btn" id="fillDeadlineBtn">締切がない枠に「開始45分前」をまとめて設定</button>
       </div>
       <div id="slotList"></div>
       <div class="result hidden" id="matchResult"></div>
@@ -935,21 +940,25 @@
 
     // ----- 🎫 当日来場者のための席 -----
     function advExample() {
-      const v = Number($("advPercent").value) || 0;
-      $("advExample").textContent = v ? "例：定員20 → 前日まで " + Math.floor(20 * v / 100) + "人・当日に " + (20 - Math.floor(20 * v / 100)) + "席／定員16 → 前日まで "
-        + Math.floor(16 * v / 100) + "人・当日に " + (16 - Math.floor(16 * v / 100)) + "席" : "";
+      const v = Number($("advPercent").value) || 0, m = Number($("dayOpenMin").value) || 0;
+      if (!v || !m) { $("advExample").textContent = ""; return; }
+      const first = Math.floor(12 * v / 100);
+      const open = new Date(new Date("2027-07-02T13:00:00+09:00").getTime() - m * 60000);
+      const hm = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", hour: "numeric", minute: "2-digit" }).format(open);
+      $("advExample").textContent = "例：定員12 → 先に予約できるのは " + first + "人まで・残りの " + (12 - first) + "席は開始の" + m + "分前に開く（13:00開始の枠なら " + hm + " から）";
     }
     $("advPercent").addEventListener("input", advExample);
+    $("dayOpenMin").addEventListener("input", advExample);
     async function loadBooking() {
       const r = await api("bookingSettings", {});
       if (!r.ok) { set("advStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
-      $("advPercent").value = r.booking.advancePercent; advExample();
+      $("advPercent").value = r.booking.advancePercent; $("dayOpenMin").value = r.booking.dayOpenMin; advExample();
     }
     $("advSave").addEventListener("click", async () => {
-      const r = await api("bookingSettings", { save: "1", advancePercent: String($("advPercent").value) });
+      const r = await api("bookingSettings", { save: "1", advancePercent: String($("advPercent").value), dayOpenMin: String($("dayOpenMin").value) });
       if (!r.ok) { set("advStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
-      $("advPercent").value = r.booking.advancePercent; advExample();
-      set("advStatus", "✅ 保存しました（前日までに予約できるのは定員の" + r.booking.advancePercent + "%まで）", "ok");
+      $("advPercent").value = r.booking.advancePercent; $("dayOpenMin").value = r.booking.dayOpenMin; advExample();
+      set("advStatus", "✅ 保存しました（先に予約できるのは定員の" + r.booking.advancePercent + "%まで・残りは開始の" + r.booking.dayOpenMin + "分前に開く）", "ok");
     });
 
     // ----- 🏷 早割の状況 -----
@@ -1098,17 +1107,17 @@
     }
     $("reloadSlots").addEventListener("click", loadSlots);
     $("fillDeadlineBtn").addEventListener("click", async () => {
-      const prev = await api("fillMissingDeadlines", { beforeMin: 60, dryRun: 1 });
+      const prev = await api("fillMissingDeadlines", { dryRun: 1 });   // 分数はサーバーの既定（開始45分前）
       if (!prev.ok) { set("slotStatus", "⚠️ " + esc(prev.error || "失敗"), "ng"); return; }
       const ok = await dangerConfirm({
         title: "締切をまとめて設定",
-        body: "締切が未設定の枠に「開始60分前」を締切として入れます。\n個別に変えたい枠は、あとで「編集」から直せます。",
+        body: "締切が未設定の枠に「開始" + prev.beforeMin + "分前」を締切として入れます。\n個別に変えたい枠は、あとで「編集」から直せます。",
         target: prev.count + "件の枠",
         confirmText: "まとめて設定する"
       });
       if (!ok) return;
       set("slotStatus", "設定中…", "");
-      const r = await api("fillMissingDeadlines", { beforeMin: 60 });
+      const r = await api("fillMissingDeadlines", {});
       if (r.ok) { set("slotStatus", "✅ " + r.count + "件に締切を設定しました", "ok"); loadSlots(); }
       else set("slotStatus", "⚠️ " + esc(r.error || "失敗"), "ng");
     });
@@ -1150,6 +1159,7 @@
             ? '<div class="meta ng" style="font-weight:700">⚠️ ' + esc(s.needsReviewNote || "要確認") + '</div>' : '') +
           '<div class="meta">締切 ' + (s.deadline ? esc(fmtDateTime(s.deadline)) : "未設定") +
             '　／　満席時 最大' + esc(s.maxParties || "?") + '組' +
+            (s.dayNeverOpens ? '　／　<span title="締切が、当日用の席が開く時刻より前のため">当日用の席なし</span>' : '') +
             '　／　slotId: ' + esc(s.slotId) + '</div>';
         const mBtn = document.createElement("button"); mBtn.className = "sub-btn"; mBtn.textContent = "マッチング実行";
         mBtn.onclick = () => runMatch(s.slotId);
