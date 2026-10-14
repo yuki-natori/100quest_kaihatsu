@@ -243,8 +243,8 @@
       </div>
       <div class="meta ng" id="adultsWarn" style="margin:4px 0 0 22px"></div>
       <div class="sub" style="margin-top:6px">
-        <b>締切時刻に自動でマッチングされます</b>（LINE通知は送られません。内容を確認してから
-        「結果を一斉通知」を押してください）。締切後は参加者がキャンセルできなくなります。<br>
+        <b>締切時刻に自動でマッチングされます</b>。パーティの発表（LINE）は、下の「📣 パーティ発表の自動配信」が
+        <b>ONなら自動で</b>、OFFなら内容を確認してから「結果を一斉通知」を押して送ります。締切後は参加者がキャンセルできなくなります。<br>
 締切の基本は<b>開始45分前</b>です（会場内の移動時間を見て、30〜45分で調整）。チェックインの受付開始は🎪当日運用の「ブースの流れの設定」で決めます。<br>
         締切を<b>当日用の席が開く時刻（下の🎫）より前</b>にすると、その枠は当日用の席を残しません（残しても、開く前に締め切られて誰も予約できないため）。
       </div>
@@ -320,6 +320,29 @@
       </div>
       <div class="meta" id="advExample"></div>
       <div class="status" id="advStatus"></div>
+    </div>
+
+    <!-- パーティ発表の自動配信・リーダーへの通知 -->
+    <div class="card">
+      <h2>📣 パーティ発表の自動配信</h2>
+      <div class="sub" style="margin-bottom:8px">ONにすると、締切で自動マッチングした枠のパーティ発表（LINE）を、<b>その場で自動で送ります</b>（締切から5分以内）。
+        送るのは、<b>⚠️要確認が付いていない・全員がパーティに入っている枠だけ</b>です。
+        要確認の枠・手動で組み直した枠・OFFの間にマッチングだけ済んだ枠は、今までどおり「結果を一斉通知」で送ってください。
+        LINEがエラーを返したときは、あと2回まで自動でやり直し、それでも送れなければ枠に「⚠️届いていません」と出ます。<br>
+        ※相手が公式アカウントをブロックしていると、LINEは「成功」を返すため、ここでは分かりません。</div>
+      <label style="font-weight:700; cursor:pointer;"><input type="checkbox" id="autoNotify" style="width:auto; margin-right:8px; vertical-align:middle;" />自動で送る</label>
+      <div class="status" id="autoNotifyStatus"></div>
+      <h2 style="margin-top:18px">🔔 リーダーへのお知らせ（LINE）</h2>
+      <div class="sub" style="margin-bottom:8px">⚠️要確認の枠が出たときと、パーティの発表を送れなかったときに、ここに登録した人のLINEへ知らせます（3人まで）。
+        登録できるのは、アプリでプロフィールを登録している人です。ニックネームで探して追加してください。</div>
+      <div id="leaderList" class="meta">読み込み中…</div>
+      <div class="row" style="align-items:flex-end; margin-top:8px">
+        <div><label>ニックネームで探す</label><input type="text" id="leaderQuery" placeholder="ニックネームの最初の数文字" /></div>
+        <div style="flex:0 0 auto;min-width:0"><button type="button" class="sub-btn" id="leaderSearch" style="margin:0">探す</button></div>
+      </div>
+      <div id="leaderFound"></div>
+      <button type="button" class="sub-btn" id="leaderTest" style="margin-top:8px">テストのLINEを送る</button>
+      <div class="status" id="leaderStatus"></div>
     </div>
 
     <!-- 早割の状況 -->
@@ -690,7 +713,7 @@
       if (id === "tab-quest" && !questLoaded) loadQuestSettings();
       if (id === "tab-coupons") loadCodes();
       if (id === "tab-ops") { loadTiming(); loadStaffKey(); }
-      if (id === "tab-slots") { loadBooking(); loadEarly(); }
+      if (id === "tab-slots") { loadBooking(); loadEarly(); loadNotifySettings(); }
     }
     document.querySelectorAll(".atab").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
 
@@ -961,6 +984,69 @@
       set("advStatus", "✅ 保存しました（先に予約できるのは定員の" + r.booking.advancePercent + "%まで・残りは開始の" + r.booking.dayOpenMin + "分前に開く）", "ok");
     });
 
+    // ----- 📣 パーティ発表の自動配信・🔔 リーダーへのお知らせ -----
+    function renderNotifySettings(r) {
+      $("autoNotify").checked = !!r.auto;
+      const box = $("leaderList");
+      if (!r.leaders.length) { box.textContent = "通知先はまだ登録されていません"; return; }
+      box.innerHTML = "";
+      r.leaders.forEach((l) => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0";
+        row.innerHTML = '<span>🔔 <b>' + esc(l.nickname || "（名前なし）") + '</b></span>';
+        const b = document.createElement("button"); b.type = "button"; b.className = "sub-btn"; b.textContent = "外す"; b.style.margin = "0";
+        b.onclick = async () => {
+          const x = await api("notifySettings", { removeLeader: l.id });
+          if (!x.ok) { set("leaderStatus", "⚠️ " + (x.error || "失敗"), "ng"); return; }
+          renderNotifySettings(x); set("leaderStatus", "✅ 通知先から外しました", "ok");
+        };
+        row.appendChild(b); box.appendChild(row);
+      });
+    }
+    async function loadNotifySettings() {
+      const r = await api("notifySettings", {});
+      if (!r.ok) { $("leaderList").textContent = ""; set("autoNotifyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      renderNotifySettings(r);
+    }
+    $("autoNotify").addEventListener("change", async () => {
+      const want = $("autoNotify").checked;
+      if (want && !confirm("パーティ発表の自動配信をONにします。\nこれ以降に締切を迎える枠は、確認なしで参加者にLINEが届きます。ONにしてよいですか？")) { $("autoNotify").checked = false; return; }
+      const r = await api("notifySettings", { save: "1", auto: want ? "1" : "0" });
+      if (!r.ok) { $("autoNotify").checked = !want; set("autoNotifyStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      renderNotifySettings(r);
+      set("autoNotifyStatus", r.auto ? "✅ ONにしました（これ以降に締切を迎える枠から、自動で送ります）" : "✅ OFFにしました（発表は「結果を一斉通知」で送ってください）", "ok");
+    });
+    $("leaderSearch").addEventListener("click", async () => {
+      const q = $("leaderQuery").value.trim();
+      const box = $("leaderFound"); box.innerHTML = "";
+      if (!q) { set("leaderStatus", "ニックネームを入れてください", "ng"); return; }
+      const r = await api("searchUser", { query: q });
+      if (!r.ok) { set("leaderStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      if (!r.users.length) { set("leaderStatus", "見つかりませんでした（アプリでプロフィールを登録している人だけ探せます）", "ng"); return; }
+      set("leaderStatus", "", "");
+      r.users.forEach((u) => {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:8px;margin:4px 0";
+        row.innerHTML = '<span>' + esc(u.nickname || "（名前なし）") + '</span>';
+        const b = document.createElement("button"); b.type = "button"; b.className = "sub-btn"; b.textContent = "通知先に追加"; b.style.margin = "0";
+        b.onclick = async () => {
+          const x = await api("notifySettings", { addLeader: u.lineUserId });
+          if (!x.ok) { set("leaderStatus", "⚠️ " + (x.error || "失敗"), "ng"); return; }
+          renderNotifySettings(x); box.innerHTML = ""; $("leaderQuery").value = "";
+          set("leaderStatus", "✅ 追加しました。「テストのLINEを送る」で届くか確かめてください", "ok");
+        };
+        row.appendChild(b); box.appendChild(row);
+      });
+    });
+    $("leaderTest").addEventListener("click", async () => {
+      set("leaderStatus", "送信中…", "");
+      const r = await api("notifySettings", { testLeader: "1" });
+      if (!r.ok) { set("leaderStatus", "⚠️ " + (r.error || "失敗"), "ng"); return; }
+      const ng = r.test.filter((t) => !t.ok);
+      set("leaderStatus", ng.length ? "⚠️ 送れなかった人：" + ng.map((t) => t.nickname + "（" + t.error + "）").join("、")
+        : "✅ " + r.test.length + "人に送りました。LINEに届いているか確かめてください（届いていなければ、公式アカウントを友だち追加・ブロック解除してください）", ng.length ? "ng" : "ok");
+    });
+
     // ----- 🏷 早割の状況 -----
     function renderEarly(r) {
       const yen = (n) => Number(n).toLocaleString("ja-JP") + "円";
@@ -1151,12 +1237,16 @@
           (!s.deadline ? '<span class="pill errp">⚠️締切未設定</span>' : '') +
           (s.matchedAt ? '<span class="pill okp">✅マッチング済' + (s.matchedAuto ? '（自動）' : '') + '</span>' : '') +
           (s.matchedAt && !s.notifiedAt ? '<span class="pill warnp">📣未通知</span>' : '') +
-          (s.notifiedAt ? '<span class="pill okp">📨通知済</span>' : '') +
+          (s.notifiedAt ? '<span class="pill okp">📨通知済' + (s.notifiedBy === "auto" ? '（自動）' : (s.notifiedBy === "manual" ? '（手動）' : '')) + '</span>' : '') +
+          (s.notifyFailedCount ? '<span class="pill errp">⚠️' + esc(s.notifyFailedCount) + '人に届いていません' + (s.notifyRetrying ? '（自動でやり直し中）' : '') + '</span>' : '') +
           (s.reNotifyNeeded ? '<span class="pill errp">⚠️再通知が必要</span>' : '');
         div.innerHTML =
           '<div class="title">' + esc(s.time) + badges + '</div>' +
           (s.needsReview
             ? '<div class="meta ng" style="font-weight:700">⚠️ ' + esc(s.needsReviewNote || "要確認") + '</div>' : '') +
+          (s.notifyFailedCount
+            ? '<div class="meta ng">⚠️ パーティの発表が ' + esc(s.notifyFailedCount) + '人に届いていません（' + esc(s.notifyError || "送信エラー") + '）。'
+              + (s.notifiedAt ? '「届かなかった人に送り直す」を押してください' : '「結果を一斉通知」を押してください') + '</div>' : '') +
           '<div class="meta">締切 ' + (s.deadline ? esc(fmtDateTime(s.deadline)) : "未設定") +
             '　／　満席時 最大' + esc(s.maxParties || "?") + '組' +
             (s.dayNeverOpens ? '　／　<span title="締切が、当日用の席が開く時刻より前のため">当日用の席なし</span>' : '') +
@@ -1176,6 +1266,11 @@
         const dBtn = document.createElement("button"); dBtn.className = "sub-btn danger"; dBtn.textContent = "枠を削除";
         dBtn.onclick = () => deleteSlot(s);
         div.appendChild(mBtn); div.appendChild(vBtn); div.appendChild(yBtn); div.appendChild(pBtn); div.appendChild(nBtn); div.appendChild(eBtn); div.appendChild(dBtn);
+        if (s.notifyFailedCount && s.notifiedAt) {
+          const fBtn = document.createElement("button"); fBtn.className = "sub-btn warn"; fBtn.textContent = "届かなかった人に送り直す";
+          fBtn.onclick = () => notify(s.slotId, false, false, true);
+          div.appendChild(fBtn);
+        }
         if (s.needsReview) {
           const rBtn = document.createElement("button"); rBtn.className = "sub-btn"; rBtn.textContent = "⚠️を消す";
           rBtn.onclick = async () => {
@@ -1334,17 +1429,21 @@
       } else showResult("⚠️ " + esc(r.error || "失敗"));
     }
 
-    async function notify(slotId, dry, force) {
-      if (!dry && !force && !confirm("このパーティ全員にLINEで結果を送信します。送信してよいですか？")) return;
+    async function notify(slotId, dry, force, retry) {
+      if (!dry && !force && !confirm(retry ? "発表がまだ届いていない人にだけ、LINEで送り直します。よいですか？" : "このパーティ全員にLINEで結果を送信します。送信してよいですか？")) return;
       showResult(dry ? "プレビュー取得中…" : "送信中…");
-      const params = dry ? { slotId, dryRun: "1" } : (force ? { slotId, force: "1" } : { slotId });
+      const params = dry ? { slotId, dryRun: "1" } : (force ? { slotId, force: "1" } : (retry ? { slotId, retry: "1" } : { slotId }));
       const r = await api("notifyMatchingResults", params);
       if (r.ok && dry) {
         showResult("【プレビュー】対象 " + r.targetCount + "人<br>――――<br>" + esc(r.sampleMessage || "").replace(/\n/g, "<br>"));
       } else if (r.ok) {
-        showResult("✅ 送信完了：" + r.sent + "件成功 / " + r.failed + "件失敗"
-          + (r.resent ? "<br>（2回目の送信でした）" : ""));
+        showResult((r.failed ? "⚠️" : "✅") + " 送信完了：" + r.sent + "件成功 / " + r.failed + "件失敗"
+          + (r.skipped ? "（すでに届いている " + r.skipped + "人には送っていません）" : "")
+          + (r.failed ? "<br>届かなかった人がいます。少し待ってから「届かなかった人に送り直す」を押してください" : "")
+          + (r.resent && !retry ? "<br>（2回目の送信でした）" : ""));
         loadSlots();
+      } else if (r.busy) {
+        showResult("⏳ " + esc(r.error));
       } else if (r.alreadyNotified) {
         // 二重送信は既定で止める。送り直すなら2段階確認で明示的に。
         showResult("⚠️ " + esc(r.error));

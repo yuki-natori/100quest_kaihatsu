@@ -105,6 +105,7 @@
       <button data-b="90" data-a="60">前90分〜後60分</button>
     </div>
     <div class="err" id="mainErr"></div>
+    <div id="attention" class="hidden" style="background:#fdf1f0;border:2px solid var(--err);border-radius:12px;padding:12px 14px;margin:8px 0 14px"></div>
     <div id="slots"></div>
   </div>
 
@@ -191,6 +192,14 @@
     function render(r) {
       $("clock").textContent = "いま " + hm(r.now);
       $("mainErr").textContent = "";
+      // リーダーに知らせてほしい枠（要確認・発表が届いていない・発表がまだ送られていない）
+      const at = r.attention || [];
+      $("attention").classList.toggle("hidden", !at.length);
+      $("attention").innerHTML = at.length
+        ? '<div style="font-weight:700;color:var(--err);font-size:16px">⚠️ リーダーに知らせてください（' + at.length + '件）</div>'
+          + at.map((x) => '<div style="margin-top:6px"><b>' + esc(x.time) + '</b>　' + esc(x.note) + '</div>').join("")
+          + '<div style="margin-top:8px;font-size:13px;color:var(--sub)">このままだと、参加者にパーティの発表が届きません。管理画面での対応が必要です。</div>'
+        : "";
       const box = $("slots");
       if (!r.slots.length) { box.innerHTML = '<div class="empty">この時間帯の枠はありません</div>'; return; }
       const now = Date.parse(r.now);
