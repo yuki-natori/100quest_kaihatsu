@@ -297,6 +297,27 @@
     .mission-item.reco-row { border-color:var(--accent); box-shadow:0 0 0 2px rgba(230,168,23,.25); }
     .m-cleared-toggle { width:100%; margin:12px 0 6px; padding:9px 12px; border-radius:10px; border:1.5px dashed #cfc8b4;
       background:#faf8f2; color:var(--sub); font-size:12.5px; font-weight:700; text-align:left; cursor:pointer; }
+    /* 💡説明ボタン（行のチェックとは別の場所。押し間違いでチェックが付かないよう大きめに）・説明の窓・ひと休みの説明スライド */
+    .m-hint-btn { flex:0 0 auto; width:36px; height:36px; margin:-6px -4px -6px 2px; border:none; border-radius:10px;
+      background:#fff6df; font-size:17px; line-height:36px; text-align:center; cursor:pointer; }
+    .m-hint-btn:active { background:#ffe9b0; }
+    .reco .rc-hint { float:right; width:34px; height:34px; margin:-4px -4px 0 6px; border:none; border-radius:10px; background:#fff; font-size:16px; cursor:pointer; }
+    #hintOverlay, #restIntroOverlay { position:fixed; inset:0; background:rgba(20,16,8,.55); z-index:140; display:flex; align-items:center; justify-content:center; padding:18px; }
+    #hintOverlay.hidden, #restIntroOverlay.hidden { display:none; }
+    .hint-card { background:#fff; border-radius:16px; max-width:380px; width:100%; padding:18px 18px 14px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .hint-card .hc-name { font-size:16px; font-weight:800; color:var(--ink); line-height:1.5; }
+    .hint-card .hc-meta { font-size:12px; color:var(--sub); margin-top:4px; }
+    .hint-card .hc-body { font-size:14px; line-height:1.8; color:var(--ink); background:#fffaf0; border-radius:10px; padding:10px 12px; margin-top:10px; }
+    .hint-card .hc-close, .ri-card .ri-next { width:100%; margin-top:14px; padding:12px; border:none; border-radius:10px; background:var(--green); color:#fff; font-size:15px; font-weight:800; cursor:pointer; }
+    .ri-card { position:relative; background:#fff; border-radius:18px; max-width:380px; width:100%; padding:22px 18px 14px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .ri-card .ri-skip { position:absolute; top:10px; right:12px; border:none; background:none; color:var(--sub); font-size:13px; font-weight:700; cursor:pointer; }
+    .ri-card .ri-face { font-size:58px; line-height:1.1; }
+    .ri-card .ri-title { font-size:17px; font-weight:800; color:var(--green); margin-top:6px; }
+    .ri-card .ri-say { font-size:14px; line-height:1.7; color:var(--ink); background:#f3f8f4; border-radius:12px; padding:10px 12px; margin-top:10px; text-align:left; }
+    .ri-card .ri-lines { text-align:left; margin:10px 0 0; padding-left:18px; font-size:13.5px; line-height:1.75; color:var(--ink); }
+    .ri-card .ri-dots { margin-top:12px; font-size:10px; letter-spacing:4px; color:#cfc8b4; }
+    .ri-card .ri-dots b { color:var(--green); }
+    .rest-box .rs-replay { margin-top:8px; border:none; background:none; color:var(--green); font-size:12.5px; font-weight:700; text-decoration:underline; cursor:pointer; }
     .rest-box { background:#f3f8f4; border:2px solid #9cc7ac; border-radius:14px; padding:14px 14px 12px; margin:0 0 12px; text-align:center; }
     .rest-box .rs-head { font-size:14px; font-weight:800; color:var(--green); }
     .rest-box .rs-until { font-size:38px; font-weight:900; color:var(--green); line-height:1.2; margin:4px 0 2px; letter-spacing:1px; }
@@ -991,6 +1012,29 @@
     <div class="rescue-title" id="rescueTitle"></div>
     <div class="rescue-say" id="rescueSay"></div>
     <button class="rescue-btn" id="rescueNext">つづける</button>
+  </div>
+
+  <!-- 💡 お題の説明 -->
+  <div id="hintOverlay" class="hidden">
+    <div class="hint-card" role="dialog" aria-modal="true" aria-labelledby="hcName">
+      <div class="hc-name" id="hcName"></div>
+      <div class="hc-meta" id="hcMeta"></div>
+      <div class="hc-body" id="hcBody"></div>
+      <button type="button" class="hc-close" id="hcClose">閉じる</button>
+    </div>
+  </div>
+
+  <!-- ☕ ひと休みの説明スライド（パンヌ姫が話す形・3枚） -->
+  <div id="restIntroOverlay" class="hidden">
+    <div class="ri-card" role="dialog" aria-modal="true" aria-labelledby="riTitle">
+      <button type="button" class="ri-skip" id="riSkip">スキップ ▶</button>
+      <div class="ri-face" id="riFace"></div>
+      <div class="ri-title" id="riTitle"></div>
+      <div class="ri-say" id="riSay"></div>
+      <ul class="ri-lines" id="riLines"></ul>
+      <div class="ri-dots" id="riDots"></div>
+      <button type="button" class="ri-next" id="riNext">次へ</button>
+    </div>
   </div>
 
   <!-- ⑩ クリアカード オーバーレイ -->
@@ -2244,6 +2288,7 @@
       startTick(); // 残り時間カウントダウン（未開始なら中で自動停止）
       queueRescues(q); // 新しく救出された姫がいれば演出
       queueFinale(q);  // ミッションを全部クリアしたら、救出の演出のあとに姫たち全員の演出
+      maybeRestIntro(q); // ☕ ひと休みが始まったら、救出の演出のあとに説明スライド
       deviceFirstOpen = false; // 「初めて開いた」扱いは最初の表示だけ。以降に起きたことは演出する
     }
 
@@ -2353,11 +2398,14 @@
       const box = $("recoBox");
       const r = q.recommend;
       if (!r || q.phase !== "main") { box.classList.add("hidden"); return; }
-      box.innerHTML = '<div class="rc-label">👉 次のおすすめ</div>'
+      box.innerHTML = (r.hint ? '<button type="button" class="rc-hint" aria-label="このお題の説明を見る">💡</button>' : '')
+        + '<div class="rc-label">👉 次のおすすめ</div>'
         + '<div class="rc-name">' + esc(r.name) + '</div>'
         + '<div class="rc-sub">' + esc(r.catLabel || "") + (r.cat === "rest" ? "" : "・" + "⭐".repeat(Math.max(1, r.stars || 1)))
         + (r.reason ? "　" + esc(r.reason) : "") + '（ほかのお題を選んでもOK）</div>';
       box.classList.remove("hidden");
+      const rh = box.querySelector(".rc-hint");
+      if (rh) rh.addEventListener("click", (e) => { e.stopPropagation(); openHint(r); });
       box.onclick = () => {
         if (r.cat !== "rest") { missionCat = r.cat; showClearedMissions = false; }
         renderCatTabs(questData); renderMissionList(questData);
@@ -2377,9 +2425,63 @@
           : "ひと休みのお題を全部終えると、その時点で次へ進めます（あと" + (rest.remaining || 0) + "件）")
         + '<br>休んでいる間、ほかのタブのお題は押せません</div>'
         + (rest.princess ? '<div class="rs-princess">' + esc(rest.princess.emoji) + ' ' + esc(rest.princess.name) + 'は、一緒にひと休みすると出てきてくれるよ</div>' : '')
-        + '<div class="rs-note">📍 休む場所はパーティで決めてね。\n' + esc(rest.note || "") + '</div>';
+        + '<div class="rs-note">📍 休む場所はパーティで決めてね。\n' + esc(rest.note || "") + '</div>'
+        + (rest.intro ? '<button type="button" class="rs-replay" id="rsReplay">ひと休みの説明をもう一度見る</button>' : '');
       box.classList.remove("hidden");
+      const rp = $("rsReplay");
+      if (rp) rp.onclick = () => openRestIntro(rest.intro);
     }
+
+    // ----- 💡 お題の説明（窓） -----
+    function openHint(m) {
+      $("hcName").textContent = m.name || "";
+      $("hcMeta").textContent = m.cat === "rest" ? "☕ ひと休みのお題（⭐なし）" : "⭐".repeat(Math.max(1, m.stars || 1)) + " チカラ＋" + (m.stars || 1) + "・パーティ全員のチェックでクリア";
+      $("hcBody").textContent = m.hint || "";
+      $("hintOverlay").classList.remove("hidden");
+    }
+    function closeHint() { $("hintOverlay").classList.add("hidden"); }
+    $("hcClose").addEventListener("click", closeHint);
+    $("hintOverlay").addEventListener("click", (e) => { if (e.target === $("hintOverlay")) closeHint(); });
+
+    // ----- ☕ ひと休みの説明スライド -----
+    // スマホごとに1回（救出の演出と同じく端末に覚える）。マイルカ姫の救出の演出が終わってから出す。
+    // その端末で初めて開いたとき（途中から合流した人など）も、ひと休み中なら出す（タブが押せない理由を伝えるため）
+    let restIntroPending = false, restIntroData = null, restIntroIndex = 0;
+    function restIntroKey() { return "bocchi_restintro_" + (currentGroupSlotId || ""); }
+    function maybeRestIntro(q) {
+      const r = q && q.rest;
+      if (!r || r.state !== "open" || !r.intro) return;
+      let seen = false;
+      try { seen = localStorage.getItem(restIntroKey()) === "1"; } catch (e) {}
+      if (seen || !$("restIntroOverlay").classList.contains("hidden")) return;
+      if (rescuePlaying || rescueQueue.length) { restIntroPending = true; return; }   // 救出の演出のあとに出す
+      openRestIntro(r.intro);
+    }
+    function openRestIntro(intro) {
+      if (!intro || !intro.slides || !intro.slides.length) return;
+      restIntroData = intro; restIntroIndex = 0;
+      showRestIntroSlide();
+      $("restIntroOverlay").classList.remove("hidden");
+    }
+    function showRestIntroSlide() {
+      const d = restIntroData, sl = d.slides[restIntroIndex], lastOne = restIntroIndex === d.slides.length - 1;
+      $("riFace").textContent = d.face || "☕";
+      $("riTitle").textContent = sl.title || "";
+      $("riSay").textContent = sl.say ? "「" + sl.say + "」" : "";
+      $("riSay").classList.toggle("hidden", !sl.say);
+      $("riLines").innerHTML = (sl.lines || []).map((x) => "<li>" + esc(x) + "</li>").join("");
+      $("riDots").innerHTML = d.slides.map((_, i) => i === restIntroIndex ? "<b>●</b>" : "●").join("");
+      $("riNext").textContent = lastOne ? (d.done || "OK") : "次へ";
+    }
+    function closeRestIntro() {
+      $("restIntroOverlay").classList.add("hidden");
+      try { localStorage.setItem(restIntroKey(), "1"); } catch (e) {}
+    }
+    $("riNext").addEventListener("click", () => {
+      if (restIntroIndex < restIntroData.slides.length - 1) { restIntroIndex++; showRestIntroSlide(); }
+      else closeRestIntro();
+    });
+    $("riSkip").addEventListener("click", closeRestIntro);
 
     // クリア済みと分かったミッションのID。次の描画で「今クリアした1件」を光らせるために使う
     let clearedSeen = null;
@@ -2472,11 +2574,22 @@
         }
         if (m.kind === "partyName" || m.kind === "declare" || m.kind === "intro") row.style.flexWrap = "wrap";
 
+        // 💡説明（本編とひと休みのお題・説明があるときだけ）。押してもチェックは付かない
+        if (m.hint && !m.tutorial) {
+          const hb = document.createElement("button");
+          hb.type = "button";
+          hb.className = "m-hint-btn";
+          hb.textContent = "💡";
+          hb.setAttribute("aria-label", "このお題の説明を見る");
+          hb.addEventListener("click", (e) => { e.stopPropagation(); openHint(m); });
+          row.appendChild(hb);
+        }
         // クリア済み・ロック中は押せない（取り消すとチカラが減り、救出済みの姫が戻ってしまうため）
         if (notStarted || notJoined) row.style.opacity = ".55";
         if (!m.cleared && !m.locked && !notStarted && !notJoined) {
           row.addEventListener("click", (e) => {
             if (e.target.closest(".m-name-edit")) return; // 名前の入力欄はチェックに反応させない
+            if (e.target.closest(".m-hint-btn")) return;  // 💡も反応させない（念のため）
             toggleQuestMission(m.id, !m.mine, row);
           });
         }
@@ -2615,6 +2728,7 @@
       $("rescueBurst").innerHTML = "";
       rescuePlaying = false;
       if (rescueQueue.length) setTimeout(playNextRescue, 300);
+      else if (restIntroPending) { restIntroPending = false; setTimeout(() => maybeRestIntro(questData), 300); }
     }
     $("rescueNext").addEventListener("click", closeRescue);
     // スキップは救出の演出を待ち行列ごと閉じる（4回とも長いと飽きるため）。

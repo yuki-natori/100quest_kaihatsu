@@ -206,6 +206,7 @@
           <div class="sub" style="font-size:12px; margin:-4px 0 10px">
             行ごとに<b>種類</b>（タブ）と<b>おすすめの時期</b>を選びます。「序盤向け」は最初の30%の時間に、「終盤向け」は残り20%になってから「次のおすすめ」に出します。
             ☕ ひと休みのお題は⭐なし（チカラにも「全部クリアの演出」にも数えません）。並び順は、タブの中の並びと「次のおすすめ」の順になります。
+            各行の下の欄は<b>💡説明</b>（アプリで💡を押すと出る。空なら💡を出さない）。
           </div>
           <div class="q-filter" id="missionFilter"></div>
           <div id="questMissionList"></div>
@@ -1932,7 +1933,8 @@
       questDirty  = false;
       questPrincesses = r.princesses || [];
       questPowers     = r.powers || [];
-      questMissions   = (r.missions || []).map((m) => ({ id: m.id, name: m.name, power: m.power, stars: m.stars, cat: m.cat || "talk", when: m.when || "any" }));
+      questMissions   = (r.missions || []).map((m) => ({ id: m.id, name: m.name, power: m.power, stars: m.stars, cat: m.cat || "talk", when: m.when || "any", hint: m.hint || "" }));
+      questHintMax    = r.hintMax || 100;
       questCats       = r.categories || {};
       questCatKeys    = r.categoryKeys || ["talk", "play", "fes", "rest"];
       questRest       = r.rest || { minutes: 30, lateMinutes: 10, lateWithinMin: 40 };
@@ -1990,7 +1992,7 @@
     }
 
     // ----- お題の種類の名前・ひと休みの時間 -----
-    let questCats = {}, questCatKeys = ["talk", "play", "fes", "rest"], questRest = {}, questMissionMax = 20;
+    let questCats = {}, questCatKeys = ["talk", "play", "fes", "rest"], questRest = {}, questMissionMax = 20, questHintMax = 100;
     function renderCatNameEditor() {
       const box = $("questCatNames");
       box.innerHTML = questCatKeys.map((k) =>
@@ -2102,7 +2104,11 @@
               [1, 2, 3].map((n) => '<option value="' + n + '"' + (n === m.stars ? ' selected' : '') + '>' +
                 "⭐".repeat(n) + '</option>').join("") +
               '</select>') +
-          '<button class="qm-del" data-i="' + i + '" title="この行を削除">✕</button>';
+          '<button class="qm-del" data-i="' + i + '" title="この行を削除">✕</button>' +
+          '<input type="text" class="qm-name qm-hint" maxlength="' + questHintMax + '" style="flex-basis:100%;font-size:12.5px;margin-top:4px" ' +
+            'placeholder="💡説明（遊び方の例・話が広がるきっかけ・目安の時間。空なら💡を出さない・' + questHintMax + '文字まで）" ' +
+            'id="qm_hint_' + i + '" value="' + esc(m.hint || "") + '" />';
+        d.style.flexWrap = "wrap";
         ml.appendChild(d);
       });
     }
@@ -2120,7 +2126,8 @@
           power: m.power,   // チカラの種類は使わない（保存されている値をそのまま残す）
           stars: stars,
           cat:   cat,
-          when:  $("qm_when_" + i) ? $("qm_when_" + i).value : m.when
+          when:  $("qm_when_" + i) ? $("qm_when_" + i).value : m.when,
+          hint:  $("qm_hint_" + i) ? $("qm_hint_" + i).value.trim() : (m.hint || "")
         };
       });
     }
@@ -2149,7 +2156,7 @@
     $("addMissionBtn").addEventListener("click", () => {
       syncMissionInputs();
       if (questMissions.length >= questMissionMax) { set("questStatus", "ミッションは" + questMissionMax + "件までです（ひと休みのお題を含む）", "ng"); return; }
-      questMissions.push({ id: "", name: "", power: "earn", stars: 2, cat: "talk", when: "any" });   // チカラの種類は使わない（内部の既定値）
+      questMissions.push({ id: "", name: "", power: "earn", stars: 2, cat: "talk", when: "any", hint: "" });   // チカラの種類は使わない（内部の既定値）
       markQuestDirty();
       renderMissionEditor();
       const el = $("qm_name_" + (questMissions.length - 1));
