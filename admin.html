@@ -206,7 +206,7 @@
           <div class="sub" style="font-size:12px; margin:-4px 0 10px">
             行ごとに<b>種類</b>（タブ）と<b>おすすめの時期</b>を選びます。「序盤向け」は最初の30%の時間に、「終盤向け」は残り20%になってから「次のおすすめ」に出します。
             ☕ ひと休みのお題は⭐なし（チカラにも「全部クリアの演出」にも数えません）。並び順は、タブの中の並びと「次のおすすめ」の順になります。
-            各行の下の欄は<b>💡説明</b>（アプリで💡を押すと出る。空なら💡を出さない）。
+            各行の下の欄は<b>💡説明</b>（アプリで💡を押すと出る。空なら💡を出さない）。残り時間を意識させないよう、<b>目安の時間は書かない</b>でください（クリアより、相手との会話を楽しむのが一番の目的）。
           </div>
           <div class="q-filter" id="missionFilter"></div>
           <div id="questMissionList"></div>
@@ -2106,7 +2106,7 @@
               '</select>') +
           '<button class="qm-del" data-i="' + i + '" title="この行を削除">✕</button>' +
           '<input type="text" class="qm-name qm-hint" maxlength="' + questHintMax + '" style="flex-basis:100%;font-size:12.5px;margin-top:4px" ' +
-            'placeholder="💡説明（遊び方の例・話が広がるきっかけ・目安の時間。空なら💡を出さない・' + questHintMax + '文字まで）" ' +
+            'placeholder="💡説明（遊び方の例・話が広がるきっかけ。時間は書かない。空なら💡を出さない・' + questHintMax + '文字まで）" ' +
             'id="qm_hint_' + i + '" value="' + esc(m.hint || "") + '" />';
         d.style.flexWrap = "wrap";
         ml.appendChild(d);
