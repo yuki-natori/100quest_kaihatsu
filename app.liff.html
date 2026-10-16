@@ -2248,9 +2248,39 @@
     const powerLabel = (k) => (FUN_META[k] ? FUN_META[k].emoji + FUN_META[k].label : "");   // 名前は旧来のまま（呼び出し元が多いため）
     const stars = (n) => "⭐".repeat(Math.max(1, Math.min(3, n || 1)));
 
+    // ----- 押した瞬間に見た目を変える（2026-10-16） -----
+    // チェック・「続ける／終了する」は、押したらすぐ自分の印と人数を変えて、裏でサーバーに送る。
+    // クリア・チカラ・救出はサーバーの返事で決める（返事が来たら描き直す）。失敗したら元に戻して理由を出す。
+    // 送っている途中に10秒ごとの自動更新の返事が届いても、押した印を消さないように上から重ねる。
+    const pendingMine = new Map();   // missionId → 送っている途中の自分のチェック（true / false）
+    let pendingFinish = null;        // 送っている途中の「続ける／終了する」（"continue" / "end"）
+    let questWriteSeq = 0;           // チェックの返事を描いた回数（それより前に出した読み込みの返事は古いので捨てる）
+    function overlayPending(q) {
+      if (!q) return q;
+      (q.missions || []).forEach((m) => {
+        if (!pendingMine.has(m.id) || m.cleared) return;
+        const want = pendingMine.get(m.id);
+        if (!!m.mine === want) return;
+        m.mine = want;
+        m.checkedCount = Math.max(0, Math.min(m.memberCount || 99, (m.checkedCount || 0) + (want ? 1 : -1)));
+      });
+      const f = q.finish;
+      if (pendingFinish && f && f.open && f.mine !== pendingFinish) {
+        if (f.mine === "end") f.end--; else if (f.mine === "continue") f.cont--;
+        if (pendingFinish === "end") f.end++; else f.cont++;
+        f.mine = pendingFinish;
+      }
+      return q;
+    }
+    // サーバーから受け取ったクエストを描く（押した途中の印を重ねてから）
+    function showQuest(q) { questData = overlayPending(q); renderQuest(questData); }
+
     async function loadQuest(slotId) {
-      const r = await api("getQuestState", { lineUserId: profile.userId, slotId: slotId });
-      questData = r.quest || null; // 枠切替時に別枠の古いデータを残さない
+      const seq0 = questWriteSeq;
+      const r = await api("quest", { action: "get", lineUserId: profile.userId, slotId: slotId });
+      // 読み込みの途中でチェックの返事を描いていたら、この返事のほうが古い（同じ枠のときだけ捨てる）
+      if (seq0 !== questWriteSeq && r.quest && slotId === currentGroupSlotId) { applyGroupView(); return; }
+      questData = overlayPending(r.quest || null); // 枠切替時に別枠の古いデータを残さない
       if (r.quest) { renderQuest(r.quest); $("questBox").classList.remove("hidden"); }
       else { $("questBox").classList.add("hidden"); $("shareBtn").classList.add("hidden"); stopTick(); }
       applyGroupView();
@@ -2496,9 +2526,18 @@
       box.classList.remove("hidden");
       box.querySelectorAll(".fb-btn").forEach((b) => {
         b.onclick = async () => {
-          b.disabled = true;
-          const r = await api("toggleQuestMission", { lineUserId: profile.userId, slotId: currentGroupSlotId, finish: b.dataset.v });
-          if (r.quest) { questData = r.quest; renderQuest(r.quest); }
+          if (pendingFinish || f.mine === b.dataset.v) return;
+          // 押したらすぐ選んだ印と人数を変える（返事は裏で待つ）
+          pendingFinish = b.dataset.v;
+          overlayPending(questData);
+          renderFinishBox(questData);
+          let r;
+          try { r = await api("quest", { action: "toggle", lineUserId: profile.userId, slotId: currentGroupSlotId, finish: pendingFinish }); }
+          catch (e) { r = { error: "通信できませんでした。電波のよい場所でもう一度押してください" }; }
+          pendingFinish = null;
+          questWriteSeq++;
+          if (r.quest) showQuest(r.quest);
+          else { try { await loadQuest(currentGroupSlotId); } catch (e) {} }   // 元に戻す
           if (r.ok && r.quest && r.quest.endedEarly) {
             // 全員で終了に決まった → 終了の表示へ（パーティ画面の終わる時刻も早まるので読み直す）
             try { await renderGroupDetail(currentGroupSlotId); } catch (e) {}
@@ -2666,6 +2705,7 @@
           row.addEventListener("click", (e) => {
             if (e.target.closest(".m-name-edit")) return; // 名前の入力欄はチェックに反応させない
             if (e.target.closest(".m-hint-btn")) return;  // 💡も反応させない（念のため）
+            if (pendingMine.has(m.id)) return;             // 送っている途中は、返事が来るまで押せない
             toggleQuestMission(m.id, !m.mine, row);
           });
         }
@@ -2696,23 +2736,38 @@
         const name = input.value.trim();
         if (!name) { input.focus(); return; }
         btn.disabled = true; btn.textContent = "…";
-        const r = await api("setPartyName", {
+        const r = await api("quest", { action: "name",
           lineUserId: profile.userId, slotId: currentGroupSlotId, name: name });
-        if (r.ok && r.quest) { partyNameDraft = null; questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
+        if (r.ok && r.quest) { partyNameDraft = null; questWriteSeq++; showQuest(r.quest); renderActionBanner(); }
         else { btn.disabled = false; btn.textContent = "決定"; }
       });
       input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); btn.click(); } });
       return wrap;
     }
 
-    async function toggleQuestMission(missionId, mine, rowEl) {
-      if (rowEl) rowEl.style.pointerEvents = "none";
-      const r = await api("toggleQuestMission", {
-        lineUserId: profile.userId, slotId: currentGroupSlotId, missionId: missionId, done: mine });
-      if (r.ok && r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); return; }
-      if (rowEl) rowEl.style.pointerEvents = "";
-      // 断られた（スタート前・移動先に着く前など）→ 最新の状態に描き直して理由を見せる
-      if (r.quest) { questData = r.quest; renderQuest(r.quest); renderActionBanner(); }
+    async function toggleQuestMission(missionId, mine) {
+      // 押したらすぐ自分の印（・）と「◯/◯人」を変える。クリアかどうかはサーバーの返事で決める
+      const slotId = currentGroupSlotId;
+      pendingMine.set(missionId, !!mine);
+      overlayPending(questData);
+      renderMissionList(questData);
+      let r;
+      try { r = await api("quest", { action: "toggle", lineUserId: profile.userId, slotId: slotId, missionId: missionId, done: mine }); }
+      catch (e) { r = { error: "通信できませんでした。電波のよい場所でもう一度押してください" }; }
+      pendingMine.delete(missionId);
+      if (slotId !== currentGroupSlotId) return;   // 返事を待つ間に別の時間の画面へ移った
+      questWriteSeq++;
+      if (r.ok && r.quest) { showQuest(r.quest); renderActionBanner(); return; }
+      // 断られた（スタート前・移動先に着く前・ひと休み中など）・通信できなかった → 元に戻して理由を見せる
+      if (r.quest) { showQuest(r.quest); renderActionBanner(); }
+      else {
+        const m = questData && (questData.missions || []).find((x) => x.id === missionId);
+        if (m && !m.cleared && !!m.mine === !!mine) {
+          m.mine = !mine;
+          m.checkedCount = Math.max(0, (m.checkedCount || 0) + (mine ? -1 : 1));
+        }
+        if (questData) renderMissionList(questData);
+      }
       if (r.error) alert(r.error);
     }
 
