@@ -558,6 +558,22 @@
       border-radius:20px; padding:22px 18px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.3); }
     .sc-head { font-size:17px; font-weight:800; color:var(--green); }
     .sc-animal { font-size:80px; margin:6px 0; }
+    /* 姫のイラスト（2026-10-18・試しにペンペン姫だけ。ほかの姫は絵文字のまま） */
+    .p-art { display:inline-block; vertical-align:bottom; object-fit:contain; }
+    /* 救出前の見せ方（SILHOUETTE で切り替え。C は専用の画像を使う） */
+    .p-art.sil-A { filter:brightness(.13) saturate(.4) contrast(1.1); }
+    .p-art.sil-B { filter:grayscale(1) brightness(.38) blur(1.5px); opacity:.85; }
+    .tut-face.has-art, .q-p .qp-face.has-art { filter:none; }
+    .tut-face .p-art { width:56px; height:56px; }
+    .q-p .qp-face .p-art { width:44px; height:44px; }
+    .q-p:not(.got) .qp-face.has-art { opacity:.9; }
+    .garden .pc .p-art { height:calc(var(--pc-size, 76px) * 1.55); width:auto; }
+    .rescue-face .p-art.big { width:min(66vw, 300px); height:min(66vw, 300px); }
+    .rescue-face .p-art.float { animation:artFloat 2.4s ease-in-out infinite; }
+    @keyframes artFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+    .rescue-face.finale .p-art { height:84px; width:84px; }
+    .sc-animal .p-art { height:110px; width:110px; }
+    @media (prefers-reduced-motion: reduce) { .rescue-face .p-art.float { animation:none; } }
     .sc-grown { font-size:14px; font-weight:700; }
     .sc-pers { font-size:13px; color:var(--green); font-weight:700; margin-top:6px; }
     .sc-line { font-size:12px; color:var(--sub); margin:14px 0 4px; }
@@ -2324,6 +2340,7 @@
       // 読み込みの途中でチェックの返事を描いていたら、この返事のほうが古い（同じ枠のときだけ捨てる）
       if (seq0 !== questWriteSeq && r.quest && slotId === currentGroupSlotId) { applyGroupView(); return; }
       questData = overlayPending(r.quest || null); // 枠切替時に別枠の古いデータを残さない
+      preloadPrincessArt(questData);
       if (r.quest) { renderQuest(r.quest); $("questBox").classList.remove("hidden"); }
       else { $("questBox").classList.add("hidden"); $("shareBtn").classList.add("hidden"); stopTick(); }
       applyGroupView();
@@ -2382,7 +2399,7 @@
       // 救出した姫（進むほど賑やかになる）
       $("qPrincesses").innerHTML = (q.princesses || []).map((p) =>
         '<div class="q-p' + (p.rescued ? ' got' : '') + '">'
-        + '<div class="qp-face">' + p.emoji + '</div>'
+        + '<div class="qp-face' + (PRINCESS_ART[p.id] ? ' has-art' : '') + '">' + princessFace(p, p.rescued ? "icon" : "silhouette") + '</div>'
         + '<div class="qp-name">' + (p.rescued ? esc(p.name) : "？？？") + '</div></div>'
       ).join("");
 
@@ -2410,7 +2427,53 @@
       deviceFirstOpen = false; // 「初めて開いた」扱いは最初の表示だけ。以降に起きたことは演出する
     }
 
-    // ----- 姫たちタブ：救出した姫たちの庭（以前のたまごっち画面を流用。イラストができたら差し替える）-----
+    // ----- 姫のイラスト（2026-10-18・試しにペンペン姫だけ。方針メモ「姫イラスト（アニメーションWebP）と救出時の音」）-----
+    //   anim＝動く版（まばたき・アニメーションWebP 480px）／still＝止め絵（透過PNG 480px）／icon＝小さい止め絵（160px）
+    //   shadow＝救出前の見せ方 C 用の画像。イラストの無い姫は、今までどおり絵文字
+    //   使い分け：救出の演出＝動く版／庭・一覧・記念画像＝止め絵（庭はCSSで弾ませる）／「動きを減らす」設定の人＝止め絵
+    const PRINCESS_ART = {
+      penpen: { anim: "img/hime/penpen.webp", still: "img/hime/penpen.png", icon: "img/hime/penpen_icon.png", shadow: "img/hime/penpen_shadow.png" }
+    };
+    const SILHOUETTE = "A";   // 救出前の見せ方：A＝暗く沈める／B＝すりガラス／C＝線画の影（比べて決める）
+    const REDUCE_MOTION = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const artLoaded = {};     // 読み込めた画像（パス → Image）。救出の演出で待たせないために先に読む
+    function preloadArt(src) {
+      if (!src || artLoaded[src] !== undefined) return;
+      artLoaded[src] = null;
+      const im = new Image();
+      im.onload = () => { artLoaded[src] = im; };
+      im.onerror = () => { delete artLoaded[src]; };   // 古い端末（動くWebPを出せない）・通信エラー → 止め絵のまま
+      im.src = src;
+    }
+    // パーティ画面を開いたら、そのパーティの姫の絵を先に読み込んでおく（チュートリアルが終わるころには届いている）
+    function preloadPrincessArt(q) {
+      ((q && q.princesses) || []).forEach((p) => {
+        const a = PRINCESS_ART[p.id]; if (!a) return;
+        preloadArt(a.still); preloadArt(a.icon);
+        if (!REDUCE_MOTION) preloadArt(a.anim);
+        if (SILHOUETTE === "C") preloadArt(a.shadow);
+      });
+    }
+    // 姫の顔（HTML）。kind：icon（小さい止め絵）／still（止め絵）／silhouette（救出前）。イラストが無ければ絵文字
+    function princessFace(p, kind, cls) {
+      const a = p && PRINCESS_ART[p.id];
+      if (!a) return esc((p && p.emoji) || "");
+      let src = kind === "still" ? a.still : a.icon, extra = "";
+      if (kind === "silhouette") {
+        if (SILHOUETTE === "C") src = a.shadow; else extra = " sil-" + SILHOUETTE;
+      }
+      return '<img class="p-art' + extra + (cls ? " " + cls : "") + '" src="' + src + '" alt="' + esc(p.name || "") + '" data-emoji="' + esc(p.emoji || "") + '" draggable="false">';
+    }
+    // 画像が読めなかったら（未アップロード・通信エラー）絵文字に戻す
+    document.addEventListener("error", (e) => {
+      const t = e.target;
+      if (t && t.tagName === "IMG" && t.classList.contains("p-art") && t.dataset.emoji !== undefined && !t.dataset.fellBack) {
+        t.dataset.fellBack = "1";
+        t.replaceWith(document.createTextNode(t.dataset.emoji));
+      }
+    }, true);
+
+    // ----- 姫たちタブ：救出した姫たちの庭（以前のたまごっち画面を流用。イラストのある姫は止め絵で弾む）-----
     // 鳴き声（ひとこと）。姫ごとの口ぐせはサーバーの姫の定義（cries）から来る。手書き風の文字でふわっと浮かんで消える
     // 姫の名前・絵文字・セリフもすべてサーバーの定義から読む（差し替えはサーバーの1か所で済む）
     const firstPrincessName = (q) => (((q && q.princesses) || [])[0] || {}).name || "最初の姫";
@@ -2427,7 +2490,7 @@
       got.forEach((p, i) => {
         const el = document.createElement("span");
         el.className = "pc";
-        el.textContent = p.emoji;
+        el.innerHTML = princessFace(p, "still");
         el.dataset.id = p.id;
         el.style.animationDelay = (i * -0.4) + "s"; // みんなで同じ動きにならないようずらす
         el.addEventListener("click", () => playPrincessCry(el));
@@ -2467,7 +2530,10 @@
       if (q.phase !== "tutorial") { box.classList.add("hidden"); return; }
       box.classList.remove("hidden");
       $("tutVoice").textContent = t.voice || "";
-      $("tutFace").textContent = ((q.princesses || [])[0] || {}).emoji || "❔";   // 救出前はシルエット（CSS）
+      // 救出前はシルエット（絵文字は CSS で真っ黒に、イラストは SILHOUETTE の見せ方で）
+      const p0 = (q.princesses || [])[0] || null;
+      $("tutFace").classList.toggle("has-art", !!(p0 && PRINCESS_ART[p0.id]));
+      $("tutFace").innerHTML = p0 ? princessFace(p0, "silhouette") : "❔";
       const ms = q.missions || [];
       if (t.flow === "moveFirst") {
         const done = ms.filter((m) => m.cleared).length;
@@ -2869,7 +2935,7 @@
       try { localStorage.setItem(finaleMemoryKey(), "1"); } catch (e) {}
       if (deviceFirstOpen) return; // 別の端末で途中から初めて開いた → 記録だけ
       if (rescueQueue.some((x) => x.finale)) return;
-      const faces = (q.princesses || []).filter((p) => p.rescued).map((p) => p.emoji);
+      const faces = (q.princesses || []).filter((p) => p.rescued).map((p) => princessFace(p, "icon"));
       rescueQueue.push({ finale: true, faces: faces.length ? faces : ["🏰"] });
       playNextRescue();
     }
@@ -2883,19 +2949,35 @@
       if (p.finale) {
         // 姫たちが並んで、少しずつずれて跳ねる
         face.className = "rescue-face finale";
-        face.innerHTML = p.faces.map((e, i) => '<span style="animation-delay:' + (i * 0.15) + 's">' + e + '</span>').join("");
+        face.innerHTML = p.faces.map((e, i) => '<span style="animation-delay:' + (i * 0.15) + 's">' + e + '</span>').join("");   // faces は HTML（絵文字かイラスト）
         $("rescueTitle").textContent = "🎉 全ミッションクリア！";
         $("rescueSay").textContent = "みんな、本当にありがとう！\nあなたたちのおかげで\nわたしたち全員が助かったよ。\nこの出会いを、ずっと大切にしてね";
         $("rescueNext").textContent = "やったね！";
       } else {
         face.className = "rescue-face";
-        face.textContent = p.emoji;
+        showRescueArt(face, p);
         $("rescueTitle").textContent = p.name + "を救出した！";
         $("rescueSay").textContent = p.rescue || "";
         $("rescueNext").textContent = "つづける";
       }
       $("rescueOverlay").classList.remove("hidden");
       spawnConfetti(p.finale ? 90 : 40);
+    }
+    // 救出の演出の絵：動く版（まばたき）が読めていればそれを、まだなら止め絵をふわふわ揺らして出し、届いたら差し替える
+    function showRescueArt(face, p) {
+      const a = PRINCESS_ART[p.id];
+      if (!a) { face.textContent = p.emoji; return; }
+      face.innerHTML = princessFace(p, "still", "big float");
+      if (REDUCE_MOTION) return;
+      const img = face.querySelector("img");
+      const swap = () => { if (img.isConnected && !img.dataset.fellBack) { img.src = a.anim; img.classList.remove("float"); } };
+      if (artLoaded[a.anim]) { swap(); return; }
+      preloadArt(a.anim);
+      const t0 = Date.now();
+      const wait = setInterval(() => {
+        if (artLoaded[a.anim]) { clearInterval(wait); swap(); }
+        else if (artLoaded[a.anim] === undefined || Date.now() - t0 > 15000 || !img.isConnected) clearInterval(wait);
+      }, 200);
     }
     function closeRescue() {
       $("rescueOverlay").classList.add("hidden");
@@ -2932,7 +3014,11 @@
       const [y, m, day] = (d || "").split("-");
       return y + "." + Number(m) + "." + Number(day);
     }
-    // 救出した姫の絵文字を並べる（1人も救出できなくても表示は崩さない）
+    // 救出した姫の絵文字を並べる（1人も救出できなくても表示は崩さない）。イラストのある姫は絵で並べる版が rescuedFacesHtml
+    function rescuedFacesHtml(q, kind) {
+      const got = (q.princesses || []).filter((p) => p.rescued);
+      return got.length ? got.map((p) => princessFace(p, kind || "icon")).join("") : "🏰";
+    }
     function rescuedEmojis(q) {
       return (q.princesses || []).filter((p) => p.rescued).map((p) => p.emoji).join("") || "🏰";
     }
@@ -2940,7 +3026,7 @@
       const q = questData; if (!q) return;
       const n = (q.rescued || []).length;
       $("scHead").textContent = q.partyName || "あなたのパーティ";
-      $("scAnimal").textContent = rescuedEmojis(q);
+      $("scAnimal").innerHTML = rescuedFacesHtml(q, "icon");
       $("scGrown").textContent = n >= 4 ? "4人の姫を全員救出した！" : n + "人の姫を救出した！";
       $("scPers").textContent = "";
       $("scMembers").textContent = (q.memberNicknames || []).join(" / ");
@@ -2976,7 +3062,7 @@
       ctx.strokeRect(16, 16, W - 32, H - 32);
       ctx.textAlign = "center";
       ctx.font = "bold 34px sans-serif"; ctx.fillText(q.partyName || "あなたのパーティ", W / 2, 110);
-      ctx.font = "90px sans-serif"; ctx.fillText(rescuedEmojis(q), W / 2, 300);
+      drawRescuedRow(ctx, q, W / 2, 300);
       ctx.fillStyle = "#2b2b28"; ctx.font = "bold 26px sans-serif";
       ctx.fillText(n >= 4 ? "4人の姫を全員救出した！" : n + "人の姫を救出した！", W / 2, 390);
       ctx.fillStyle = "#6b6b63"; ctx.font = "20px sans-serif"; ctx.fillText("━ 一緒に旅した仲間 ━", W / 2, 510);
@@ -3015,6 +3101,24 @@
       $("saveOverlay").classList.remove("hidden");
     }
     $("saveCloseBtn").addEventListener("click", () => $("saveOverlay").classList.add("hidden"));
+    // 記念画像に救出した姫を並べる。イラストのある姫は止め絵（読み込めていなければ絵文字）
+    function drawRescuedRow(ctx, q, cx, baseY) {
+      const got = (q.princesses || []).filter((p) => p.rescued);
+      if (!got.length) { ctx.font = "90px sans-serif"; ctx.fillText("🏰", cx, baseY); return; }
+      const items = got.map((p) => {
+        const a = PRINCESS_ART[p.id];
+        const im = a && (artLoaded[a.still] || artLoaded[a.icon]);
+        return im ? { im, w: 150 } : { emoji: p.emoji, w: 108 };
+      });
+      const total = items.reduce((t, x) => t + x.w, 0);
+      let x = cx - total / 2;
+      ctx.font = "90px sans-serif";
+      items.forEach((it) => {
+        if (it.im) ctx.drawImage(it.im, x, baseY - 130, 150, 150);
+        else ctx.fillText(it.emoji, x + it.w / 2, baseY);
+        x += it.w;
+      });
+    }
     function wrapText(ctx, text, x, y, maxW, lh) {
       const words = text.split(" "); let line = ""; let yy = y;
       for (const w of words) {
