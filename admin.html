@@ -1952,7 +1952,7 @@
         div.innerHTML =
           '<div class="title">' + esc(u.nickname || "(名前なし)") +
           '<span class="pill">' + esc([u.gender, PROFILE_POWER[u.topic]].filter(Boolean).join("・") || "プロフィール未設定") + '</span></div>' +
-          (u.topicDetail ? '<div class="meta">フェスに来た理由：' + esc(u.topicDetail) + '</div>' : '') +
+          (u.topicDetail ? '<div class="meta">リベに入った理由：' + esc(u.topicDetail) + '</div>' : '') +
           '<div class="meta">' + esc(u.lineUserId) + (u.libeId ? "　／　リベシティID: " + esc(u.libeId) : "") + '</div>' +
           resvHtml + cpHtml;
         box.appendChild(div);
