@@ -345,9 +345,11 @@
     /* クリア済みは灰色にして押せなくする（下へまとめて移動する）*/
     .mission-item.done { background:#f4f2ea; border-color:#e3ddcd; color:var(--sub);
       cursor:default; pointer-events:none; }
-    .mission-item .box { width:22px; height:22px; border:2px solid #c9c2ad; border-radius:6px;
-      display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
-    .mission-item.mine .box { border-color:var(--green); color:var(--green); }
+    /* チェックの枠（2026-11-04 テストで「見にくい」と指摘 → まだ押していない枠も太い緑の線ではっきり見せる）
+       まだ押していない＝白に緑の枠／自分だけ押した＝うすい緑に緑の✓／全員そろってクリア＝濃い緑に白い✓ */
+    .mission-item .box { width:26px; height:26px; border:2.5px solid var(--green); border-radius:7px; background:#fff;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; font-weight:800; line-height:1; }
+    .mission-item.mine .box { background:#d9eee1; border-color:var(--green); color:var(--green); }
     /* チェック印だけは緑のまま＝「達成済み」であって「使えない」ではないと伝える */
     .mission-item.done .box { background:var(--green); border-color:var(--green); color:#fff; }
     .mission-item .m-body { flex:1; min-width:0; }
@@ -501,7 +503,7 @@
     /* 目的地が明かされるまでロックされる行 */
     .mission-item.locked { background:#f4f2ea; border-style:dashed; color:var(--sub);
       cursor:default; pointer-events:none; }
-    .mission-item.locked .box { border-color:#d9d4c6; color:var(--sub); }
+    .mission-item.locked .box { border-color:#d9d4c6; border-style:dashed; background:transparent; color:var(--sub); font-size:13px; }
     /* 「クリア済み」の区切り線 */
     .m-divider { display:flex; align-items:center; gap:8px; margin:16px 0 9px;
       font-size:11.5px; font-weight:700; color:var(--sub); }
@@ -1182,7 +1184,7 @@
     //   本番   = https://yuki-natori.github.io/bocchi-liff/…
     //   開発用 = それ以外（開発用リポジトリ・手元で開いた場合など）。本番につながらない側に倒す
     const ENVS = {
-      prod: { liffId: "2010205663-iIzLQGpb", base: "https://asia-northeast1-bocchi-liff-test.cloudfunctions.net" },
+      prod: { liffId: "2010205665-qqUSmzPV", base: "https://asia-northeast1-bocchi-liff-test.cloudfunctions.net" },   // 本番用のLIFF（2026-10-30に開発用 2010205663-iIzLQGpb から切り替え。開発用は権限のある人しか開けない）
       dev:  { liffId: "2011758584-fcsU80Vx", base: "https://asia-northeast1-quest100-kaihatsu.cloudfunctions.net" }
     };
     const ENV_NAME = location.pathname.startsWith("/bocchi-liff/") ? "prod" : "dev";
@@ -2895,7 +2897,7 @@
           + (m.id === recoId && !m.cleared ? " reco-row" : "");
         row.dataset.mid = m.id;
         row.innerHTML =
-          '<span class="box">' + (m.cleared ? "✓" : (m.mine ? "・" : (m.locked ? "🔒" : ""))) + '</span>'
+          '<span class="box">' + (m.cleared || m.mine ? "✓" : (m.locked ? "🔒" : "")) + '</span>'
           + '<span class="m-body"><span class="m-name">' + esc(m.name) + (m.id === recoId && !m.cleared ? '<span class="rc-badge">おすすめ</span>' : '') + '</span>'
           + '<span class="m-meta">' + (m.cat === "rest" ? "☕ ひと休みのお題（⭐なし）" : stars(m.stars) + " チカラ＋" + m.stars)
           + (m.locked ? ((q.tutorial || {}).flow === "moveFirst" ? "　🚶 移動先に着いたら押せる" : "　🔒 3つ終えると行き先が分かる")
