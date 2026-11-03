@@ -692,7 +692,7 @@
     <form id="regForm">
       <div class="field">
         <label>ニックネーム<span class="req">必須</span></label>
-        <input type="text" id="nickname" maxlength="20" placeholder="当日呼ばれたい名前" autocomplete="off" />
+        <input type="text" id="nickname" maxlength="20" placeholder="当日呼ばれたい名前" autocomplete="off" enterkeyhint="next" />
         <div class="hint">ひらがな・カタカナ・英字どれでもOK（20文字まで）</div>
       </div>
       <div class="field">
@@ -718,18 +718,18 @@
       </div>
       <div class="field">
         <label>リベに入った理由</label>
-        <input type="text" id="topicDetail" maxlength="30" placeholder="例：お金の勉強を始めたくて／友だちに誘われて" autocomplete="off" />
+        <input type="text" id="topicDetail" maxlength="30" placeholder="例：お金の勉強を始めたくて／友だちに誘われて" autocomplete="off" enterkeyhint="next" />
         <div class="hint">任意・30文字まで。パーティの仲間に表示されます</div>
       </div>
       <div class="field">
         <label>リベシティのプロフィールURL（任意）</label>
-        <input type="text" id="libeUrl" maxlength="120" placeholder="https://libecity.com/user_profile/…" autocomplete="off" />
+        <input type="text" id="libeUrl" maxlength="120" placeholder="https://libecity.com/user_profile/…" autocomplete="off" enterkeyhint="done" />
         <div class="hint">入力すると、同じパーティの仲間があなたのリベシティのプロフィールを見られるよ（空欄でもOK・あとから追加/削除できます）</div>
       </div>
       <!-- 出店要項：外部ツールで予約を受けるときは、利用目的とフェス後の削除を事前に説明する -->
       <div class="reg-privacy">📝 登録した情報は、パーティの組み合わせ・当日のご案内（LINE）・参加費の受け取り・お問い合わせ対応など、100分クエストの運営のためだけに使います。<b>フェス終了後、2027年7月31日までにすべて削除します。</b><br>
         登録すると、<a id="regTerms">利用規約</a>と<a id="regPrivacy">プライバシーポリシー</a>に同意したものとします。</div>
-      <button type="submit" class="submit" id="regBtn">この内容で登録する</button>
+      <button type="button" class="submit" id="regBtn">この内容で登録する</button>
       <button type="button" class="back-btn hidden" id="regBackBtn" style="width:100%;margin-top:10px">戻る</button>
       <div class="status" id="regStatus"></div>
     </form>
@@ -1356,8 +1356,20 @@
       showScreen("screen-register");
     }
 
-    $("regForm").addEventListener("submit", async (ev) => {
-      ev.preventDefault();
+    // 2026-11-04：入力の途中でキーボードの「改行」「完了」を押すと登録されてしまう不具合を直した。
+    //   登録は「この内容で登録する」を押したときだけ。改行キーは次の欄へ移る（最後の欄はキーボードを閉じる）
+    $("regForm").addEventListener("submit", (ev) => ev.preventDefault());
+    const REG_FIELDS = ["nickname", "gender", "topic", "topicDetail", "libeUrl"];
+    $("regForm").addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || e.isComposing || e.keyCode === 229) return;   // 変換の確定は邪魔しない
+      if (!e.target || e.target.tagName !== "INPUT") return;
+      e.preventDefault();
+      const i = REG_FIELDS.indexOf(e.target.id);
+      const next = REG_FIELDS.slice(i + 1).map((id) => $(id)).find((el) => el && el.tagName === "INPUT");
+      if (next) next.focus(); else e.target.blur();
+    });
+    $("regBtn").addEventListener("click", async () => {
+      if ($("regBtn").disabled) return;
       const nickname = $("nickname").value.trim();
       if (!nickname) { setStatus("regStatus", "ニックネームを入力してください", "ng"); return; }
       $("regBtn").disabled = true;
