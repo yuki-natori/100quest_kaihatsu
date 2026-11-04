@@ -345,6 +345,12 @@
     .howto-item[open] > summary::after { transform:rotate(180deg); }
     .howto-item[open] { border-color:var(--green); }
     .howto-body { padding:0 14px 14px; }
+    /* 当日によく見返す項目（当日の流れ・お題の進め方）：💡の説明と同じやわらかい黄色＋「当日」の札 */
+    .howto-item.hw-day { background:#fff8e6; border-color:#e8d9a8; }
+    .howto-item.hw-day[open] { border-color:#d9b55a; }
+    .howto-item.hw-day > summary .hw-no { background:#fdecc0; color:#8a5e00; }
+    .howto-item .hw-badge { flex:0 0 auto; font-size:11px; font-weight:800; padding:2px 8px; border-radius:99px; background:#8a5e00; color:#fff; }
+    .howto-item.hw-day .howto-body .hw-note { background:#fff; }
     .howto-body ol { list-style:none; counter-reset:step; margin:0; padding:0; }
     .howto-body li { counter-increment:step; position:relative; padding-left:30px; margin-top:8px; font-size:14px; line-height:1.7; }
     .howto-body li::before { content:counter(step); position:absolute; left:0; top:1px; width:22px; height:22px; border-radius:50%;
@@ -1453,8 +1459,9 @@
         if (pendingInviteCode) { const c = pendingInviteCode; pendingInviteCode = null; await openInviteAccept(c); return; }
         $("doneTitle").textContent = r.isNew ? "登録が完了しました" : "プロフィールを更新しました";
         $("doneMsg").textContent = r.isNew ? "続いて参加日時を予約しましょう。" : "";
+        doneShowsHowto = !!r.isNew;   // 新しく登録した人は、完了の画面から遊び方の説明へ（2026-11-04）
+        $("doneBackBtn").textContent = doneShowsHowto ? "📖 遊び方を見る" : "トップに戻る";
         showScreen("screen-done");
-        if (r.isNew) maybeHowtoAfterRegister();   // 新しく登録した人に、遊び方の説明（1回だけ）
       } else {
         setStatus("regStatus", "エラー：" + (r.error || ""), "ng");
         $("regBtn").disabled = false;
@@ -2867,7 +2874,7 @@
     // ----- ☕ ひと休みの説明スライド -----
     // スマホごとに1回（救出の演出と同じく端末に覚える）。マイルカ姫の救出の演出が終わってから出す。
     // その端末で初めて開いたとき（途中から合流した人など）も、ひと休み中なら出す（タブが押せない理由を伝えるため）
-    let restIntroPending = false, restIntroData = null, restIntroIndex = 0, introStoreKey = null;
+    let restIntroPending = false, restIntroData = null, restIntroIndex = 0, introStoreKey = null, introOnClose = null;
     function restIntroKey() { return "bocchi_restintro_" + (currentGroupSlotId || ""); }
     function maybeRestIntro(q) {
       const r = q && q.rest;
@@ -2879,9 +2886,9 @@
       openRestIntro(r.intro, restIntroKey());
     }
     // storeKey：閉じたときに「見た」と端末に覚える名前（覚えないときは null）
-    function openRestIntro(intro, storeKey) {
+    function openRestIntro(intro, storeKey, onClose) {
       if (!intro || !intro.slides || !intro.slides.length) return;
-      restIntroData = intro; restIntroIndex = 0; introStoreKey = storeKey || null;
+      restIntroData = intro; restIntroIndex = 0; introStoreKey = storeKey || null; introOnClose = onClose || null;
       showRestIntroSlide();
       $("restIntroOverlay").classList.remove("hidden");
     }
@@ -2903,6 +2910,8 @@
     function closeRestIntro() {
       $("restIntroOverlay").classList.add("hidden");
       if (introStoreKey) { try { localStorage.setItem(introStoreKey, "1"); } catch (e) {} }
+      const after = introOnClose; introOnClose = null;
+      if (after) after();
     }
 
     // ----- 遊び方の説明（2026-11-04）-----
@@ -2918,13 +2927,13 @@
                   "アプリに出るお題を、みんなでこなします",
                   "お題をクリアするとチカラが貯まり、囚われた4人の姫をひとりずつ助け出せます"],
           note: "いちばんの目的は、一緒になった仲間との会話を楽しむこと。全部クリアしなくても大丈夫です" },
-        { title: "当日の流れ",
+        { title: "当日の流れ", day: true,
           lines: ["予約した時間の前に、パーティ発表のLINEが届きます",
                   "開始5分前にブースへ行き、LINEのリンクか、アプリの「パーティ」からチェックインします",
                   "ブースのスタッフに参加費を払います",
                   "「目印を出す」で、同じ目印の仲間を見つけます",
                   "そろったら、だれか1人が「パーティが集まった」を押してスタート"] },
-        { title: "お題の進め方",
+        { title: "お題の進め方", day: true,
           lines: ["アプリに出る行き先へ、パーティで移動します",
                   "着いたら、自己紹介などのチュートリアルから始めます",
                   "お題ができたら、それぞれが自分のスマホでお題を押します（押すと ✓ がつきます）",
@@ -2936,15 +2945,16 @@
           note: "このブースのスタッフにつながります（フェスの運営の窓口ではありません）。体調が悪いときやケガをしたときは、会場の救護室・インフォメーションへ。この説明は、メニューの「📖 遊び方をもう一度見る」から、項目を選んでいつでも見られます" }
       ]
     };
-    function openHowto(storeKey) {
-      openRestIntro(HOWTO, storeKey);
+    function openHowto(storeKey, onClose) {
+      openRestIntro(HOWTO, storeKey, onClose);
     }
-    // 新しく登録した人には必ず出す（新しい登録は1人1回だけ。端末の記録は開発用と本番で共通なので、それでは決めない）
-    function maybeHowtoAfterRegister() { openHowto(HOWTO_KEY); }
+    // 新しく登録した人は、登録完了の画面の「📖 遊び方を見る」から出す（閉じたらトップへ）
+    let doneShowsHowto = false;   // 登録完了の画面のボタンが「遊び方を見る」か
     // メニューから：遊び方のページ（項目を選んで開く）。「はじめから順に見る」でスライド
     function openHowtoPage() {
       $("howtoList").innerHTML = HOWTO.slides.map((sl, i) =>
-        '<details class="howto-item"><summary><span class="hw-no">' + (i + 1) + '</span><span class="hw-t">' + esc(sl.title) + '</span></summary>'
+        '<details class="howto-item' + (sl.day ? ' hw-day' : '') + '"><summary><span class="hw-no">' + (i + 1) + '</span><span class="hw-t">' + esc(sl.title) + '</span>'
+        + (sl.day ? '<span class="hw-badge">当日</span>' : '') + '</summary>'
         + '<div class="howto-body"><ol>' + sl.lines.map((x) => "<li>" + esc(x) + "</li>").join("") + '</ol>'
         + (sl.note ? '<div class="hw-note">' + esc(sl.note) + '</div>' : '') + '</div></details>').join("");
       showScreen("screen-howto");
@@ -3766,7 +3776,10 @@
       await renderReserve();
     });
 
-    $("doneBackBtn").addEventListener("click", openMenu);
+    $("doneBackBtn").addEventListener("click", () => {
+      if (doneShowsHowto) { doneShowsHowto = false; openHowto(HOWTO_KEY, openMenu); }   // 説明を閉じたらトップへ
+      else openMenu();
+    });
     $("editBtn").addEventListener("click", () => openRegister(true));
 
     // リベシティID → 無料クーポン取得
