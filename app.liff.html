@@ -2939,11 +2939,8 @@
     function openHowto(storeKey) {
       openRestIntro(HOWTO, storeKey);
     }
-    function maybeHowtoAfterRegister() {
-      let seen = false;
-      try { seen = localStorage.getItem(HOWTO_KEY) === "1"; } catch (e) {}
-      if (!seen) openHowto(HOWTO_KEY);
-    }
+    // 新しく登録した人には必ず出す（新しい登録は1人1回だけ。端末の記録は開発用と本番で共通なので、それでは決めない）
+    function maybeHowtoAfterRegister() { openHowto(HOWTO_KEY); }
     // メニューから：遊び方のページ（項目を選んで開く）。「はじめから順に見る」でスライド
     function openHowtoPage() {
       $("howtoList").innerHTML = HOWTO.slides.map((sl, i) =>
