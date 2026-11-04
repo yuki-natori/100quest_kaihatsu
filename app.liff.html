@@ -1368,8 +1368,19 @@
       const next = REG_FIELDS.slice(i + 1).map((id) => $(id)).find((el) => el && el.tagName === "INPUT");
       if (next) next.focus(); else e.target.blur();
     });
-    $("regBtn").addEventListener("click", async () => {
+    // 改行キーの連打でボタンに移って押されても登録しない（2026-11-04）。
+    //   指で押したとき（ev.detail が1以上）だけ登録。キーボードで押されたときは入力画面の先頭に戻す
+    $("regBtn").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); backToRegTop(); }
+    });
+    function backToRegTop() {
+      setStatus("regStatus", "登録するときは「" + $("regBtn").textContent + "」を指で押してね", "");
+      $("nickname").focus();
+      try { $("screen-register").scrollIntoView({ block: "start" }); } catch (e) {}
+    }
+    $("regBtn").addEventListener("click", async (ev) => {
       if ($("regBtn").disabled) return;
+      if (ev.detail === 0) { backToRegTop(); return; }   // キーボードで押された
       const nickname = $("nickname").value.trim();
       if (!nickname) { setStatus("regStatus", "ニックネームを入力してください", "ng"); return; }
       $("regBtn").disabled = true;
