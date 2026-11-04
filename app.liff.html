@@ -541,6 +541,13 @@
     /* パーティ名をつける行 */
     .m-name-edit { flex:1 0 100%; display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
     .m-name-hint { flex:1 0 100%; font-size:11px; color:var(--sub); }
+    /* パーティ名の決め方の説明と、いまの名前（2026-11-04） */
+    .m-name-guide { flex:1 0 100%; font-size:12.5px; line-height:1.65; color:var(--ink); background:#fff6df; border-radius:8px; padding:8px 10px; }
+    .m-name-now { flex:1 0 100%; font-size:12.5px; color:var(--sub); }
+    .m-name-now b { color:var(--green); }
+    .pn-toast { position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); z-index:160;
+      background:#2b2b28; color:#fff; font-size:14px; font-weight:700; padding:10px 16px; border-radius:99px; max-width:90%; text-align:center;
+      box-shadow:0 6px 18px rgba(0,0,0,.25); }
     .m-name-edit input { flex:1; min-width:0; padding:8px 10px; font-size:14px;
       border:1.5px solid #d9d4c6; border-radius:8px; font-family:inherit; }
     .m-name-edit button { flex:0 0 auto; margin:0; padding:8px 14px; font-size:13px; font-weight:700;
@@ -2449,8 +2456,24 @@
       }
       return q;
     }
+    // ほかの人がパーティ名を入れ直したら、画面の下に一言（2026-11-04）
+    let lastPartyName = null;   // { slotId, name }
+    function notePartyNameChange(q) {
+      if (!q) return;
+      const sid = currentGroupSlotId, name = q.named ? q.partyName : null;
+      const prev = lastPartyName && lastPartyName.slotId === sid ? lastPartyName.name : undefined;
+      lastPartyName = { slotId: sid, name: name };
+      if (prev === undefined || !name || prev === name) return;
+      const me = currentUser && currentUser.nickname;
+      if (q.partyNamedBy && q.partyNamedBy === me) return;   // 自分で入れたときは出さない
+      const t = document.createElement("div");
+      t.className = "pn-toast";
+      t.textContent = "パーティ名が「" + name + "」に変わりました" + (q.partyNamedBy ? "（" + q.partyNamedBy + "さん）" : "");
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
     // サーバーから受け取ったクエストを描く（押した途中の印を重ねてから）
-    function showQuest(q) { questData = overlayPending(q); renderQuest(questData); }
+    function showQuest(q) { questData = overlayPending(q); notePartyNameChange(questData); renderQuest(questData); }
 
     async function loadQuest(slotId) {
       const seq0 = questWriteSeq;
@@ -2458,6 +2481,7 @@
       // 読み込みの途中でチェックの返事を描いていたら、この返事のほうが古い（同じ枠のときだけ捨てる）
       if (seq0 !== questWriteSeq && r.quest && slotId === currentGroupSlotId) { applyGroupView(); return; }
       questData = overlayPending(r.quest || null); // 枠切替時に別枠の古いデータを残さない
+      notePartyNameChange(questData);
       preloadPrincessArt(questData);
       if (r.quest) { renderQuest(r.quest); $("questBox").classList.remove("hidden"); }
       else { $("questBox").classList.add("hidden"); $("shareBtn").classList.add("hidden"); stopTick(); }
@@ -3110,7 +3134,10 @@
       const max = t.nameMax || 20;
       const bodyMax = t.nameBodyMax || (max - 3);
       const suffixes = t.suffixes || ["団", "隊", "同盟", "ギルド"];
-      wrap.innerHTML = '<input type="text" maxlength="' + max + '" placeholder="パーティ名（' + bodyMax + '文字まで）" />'
+      wrap.innerHTML = '<div class="m-name-guide">みんなで相談して、決まった名前を1人が入れてね。<b>あとから誰かが入れ直すと、最後に入れた名前になります。</b>'
+        + '全員がこの名前でOKなら、お題をチェック！（全員がチェックすると、もう変えられません）</div>'
+        + (q.named ? '<div class="m-name-now">いまの名前：<b>' + esc(q.partyName) + '</b>' + (q.partyNamedBy ? '（' + esc(q.partyNamedBy) + 'さんが入れました）' : '') + '</div>' : '')
+        + '<input type="text" maxlength="' + max + '" placeholder="パーティ名（' + bodyMax + '文字まで）" />'
         + '<button type="button">決定</button>'
         + '<div class="m-name-hint">最後に「' + suffixes.map(esc).join("・") + '」のどれかが自動でつくよ</div>';
       const input = wrap.querySelector("input");
@@ -3125,7 +3152,7 @@
         const r = await api("quest", { action: "name",
           lineUserId: profile.userId, slotId: currentGroupSlotId, name: name });
         if (r.ok && r.quest) { partyNameDraft = null; questWriteSeq++; showQuest(r.quest); renderActionBanner(); }
-        else { btn.disabled = false; btn.textContent = "決定"; }
+        else { btn.disabled = false; btn.textContent = "決定"; if (r.quest) showQuest(r.quest); if (r.error) alert(r.error); }
       });
       input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); btn.click(); } });
       return wrap;
